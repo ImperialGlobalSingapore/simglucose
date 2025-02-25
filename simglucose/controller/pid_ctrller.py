@@ -15,7 +15,7 @@ class PIDController(Controller):
         self.prev_state = 0
 
     def policy(self, observation, reward, done, **kwargs):
-        sample_time = kwargs.get('sample_time')
+        sample_time = kwargs.get('sample_time', 1)
 
         # BG is the only state for this PID controller
         bg = observation.CGM

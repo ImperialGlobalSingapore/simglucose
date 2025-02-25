@@ -5,7 +5,8 @@ import pandas as pd
 from collections import namedtuple
 import logging
 import pkg_resources
-
+from simglucose.controller.basal_bolus_ctrller import BBController
+from simglucose.controller.pid_ctrller import PIDController
 logger = logging.getLogger(__name__)
 
 Action = namedtuple("patient_action", ["CHO", "insulin"])
@@ -47,6 +48,7 @@ class T1DPatient(Patient):
         21 - 30: child#001 - child#010
         """
         patient_params = pd.read_csv(PATIENT_PARA_FILE)
+        print(patient_id)
         params = patient_params.iloc[patient_id - 1, :]
         return cls(params, **kwargs)
 
@@ -284,34 +286,57 @@ class T1DPatient(Patient):
         self.is_eating = False
         self.planned_meal = 0
 
+CtrlObservation = namedtuple('CtrlObservation', ["CGM"])
 
 if __name__ == "__main__":
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
     # ch.setLevel(logging.DEBUG)
-    ch.setLevel(logging.INFO)
+    ch.setLevel(logging.DEBUG)
     # create formatter
     formatter = logging.Formatter("%(name)s: %(levelname)s: %(message)s")
     # add formatter to ch
     ch.setFormatter(formatter)
     # add ch to logger
     logger.addHandler(ch)
-
-    p = T1DPatient.withName("adolescent#001")
+    patient_name = "adolescent#003"
+    p = T1DPatient.withName(patient_name)
     basal = p._params.u2ss * p._params.BW / 6000  # U/min
     t = []
     CHO = []
     insulin = []
     BG = []
+    copy_state = 50
+    new_state = None
+    ctrl = BBController()
     while p.t < 1000:
         ins = basal
         carb = 0
+        
+        if p.t == copy_state:
+            new_state = p.state
+        
+        # if p.t == 100:
+        #     carb = 80
+        #     ins = 80.0 / 6.0 + basal
+        # # if p.t == 150:
+        # #     ins = 80.0 / 12.0 + basal
+        # act = Action(insulin=ins, CHO=carb)
+        # ins = basal2
+        
+        carb = 0
         if p.t == 100:
             carb = 80
-            ins = 80.0 / 6.0 + basal
+            
+        if p.t == 200:
+            carb = 50
+        # ins = 80.0 / 6.0 + basal2
         # if p.t == 150:
         #     ins = 80.0 / 12.0 + basal
+        ctrl_obs = CtrlObservation(p.observation.Gsub)
+        ctrl_action = ctrl.policy(observation=ctrl_obs, reward=0, done=False, patient_name=patient_name, meal=carb)
+        ins = ctrl_action.basal + ctrl_action.bolus
         act = Action(insulin=ins, CHO=carb)
         t.append(p.t)
         CHO.append(act.CHO)
@@ -319,10 +344,42 @@ if __name__ == "__main__":
         BG.append(p.observation.Gsub)
         p.step(act)
 
+    p2 = T1DPatient(params=p._params, init_state=new_state, t0=copy_state)
+    ctrl = BBController()
+    basal2 = p2._params.u2ss * p2._params.BW / 6000  # U/min
+    t2 = []
+    CHO2 = []
+    insulin2 = []
+    BG2 = []
+    while p2.t < 1000:
+        # ins = basal2
+        
+        carb = 0
+        if p2.t == 100:
+            carb = 80
+            
+        if p2.t == 200:
+            carb = 50
+        # ins = 80.0 / 6.0 + basal2
+        # if p.t == 150:
+        #     ins = 80.0 / 12.0 + basal
+        ctrl_obs = CtrlObservation(p2.observation.Gsub)
+        ctrl_action = ctrl.policy(observation=ctrl_obs, reward=0, done=False, patient_name=patient_name, meal=carb)
+        ins = ctrl_action.basal + ctrl_action.bolus
+        act = Action(insulin=ins, CHO=carb)
+        t2.append(p2.t)
+        CHO2.append(act.CHO)
+        insulin2.append(act.insulin)
+        BG2.append(p2.observation.Gsub)
+        p2.step(act)
+    
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(3, sharex=True)
     ax[0].plot(t, BG)
+    ax[0].plot(t2, BG2)
     ax[1].plot(t, CHO)
+    ax[1].plot(t2, CHO2)
     ax[2].plot(t, insulin)
+    ax[2].plot(t2, insulin2)
     plt.show()

@@ -448,3 +448,70 @@ GitHub, clone, and develop on a branch. Steps:
 
 (If any of the above seems like magic to you, please look up the
 [Git documentation](https://git-scm.com/documentation) on the web, or ask a friend or another contributor for help.)
+
+
+## Glucose Simulation API
+
+This is a FastAPI-based HTTP server for glucose simulation using the `simglucose` package.
+
+### Installation
+
+1. Install the required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+### Running the Server
+
+#### Development Mode
+
+For development purposes, you can run the server using uvicorn directly:
+
+```bash
+python app.py
+```
+
+Or with uvicorn command:
+
+```bash
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Production Mode
+
+For production, use Gunicorn with Uvicorn workers:
+
+```bash
+gunicorn app:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+```
+
+### API Documentation
+
+Once the server is running, you can access the automatically generated API documentation:
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+
+### API Endpoints
+
+- `POST /init`: Initialize a new patient simulation
+- `POST /step/{patient_id}`: Take a simulation step for a specific patient
+- `GET /patients`: List all active patient simulations
+- `DELETE /patients/{patient_id}`: Remove a patient from the simulation
+
+### Example Usage
+
+#### Initialize a patient
+
+```bash
+curl -X POST "http://localhost:8000/init" -H "Content-Type: application/json"
+```
+
+#### Take a step
+
+```bash
+curl -X POST "http://localhost:8000/step/{patient_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"glucose_reading": 120, "carbs": 20}'
+```

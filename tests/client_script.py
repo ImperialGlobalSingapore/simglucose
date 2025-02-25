@@ -45,7 +45,7 @@ def run_server_simulation():
         
         current_time += 1
         step_data = step_response.json()
-        
+        print(step_data)
         # Update current values
         current_bg = step_data["glucose"]
         current_insulin = step_data["insulin"]

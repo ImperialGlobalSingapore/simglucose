@@ -21,13 +21,13 @@ def main(output_file: str, patient: str = "adolescent#003"):
         "glucose": patient.observation.Gsub,
         "last_action": patient._last_action
     }
-    np.save(output_file.replace('json', 'npy'), patient.state)
-    # print(patient._params.to_dict())
-    # for k, v in state.items():
-    #     print(k, type(v))
-    with open(output_file, "w+") as f:
-        json.dump(state, f)
-    print(patient.observation.Gsub)
+    # np.save(output_file.replace('json', 'npy'), patient.state)
+    # # print(patient._params.to_dict())
+    # # for k, v in state.items():
+    # #     print(k, type(v))
+    # with open(output_file, "w+") as f:
+    #     json.dump(state, f)
+    return patient.observation.Gsub
 
 if __name__ == "__main__":
     fire.Fire(main)

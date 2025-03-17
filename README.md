@@ -515,3 +515,11 @@ curl -X POST "http://localhost:8000/step/{patient_id}" \
   -H "Content-Type: application/json" \
   -d '{"glucose_reading": 120, "carbs": 20}'
 ```
+
+#### Attack Demo
+
+```bash
+curl -X POST "http://localhost:8000/enhanced_attack_demo/{patient_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"glucose_reading": 100, "attack_glucose": 300, "carbs": 0, "controller_algorithm": "pid"}'
+```

@@ -25,6 +25,8 @@ class SimObj(object):
         self.animate = animate
         self._ctrller_kwargs = None
         self.path = path
+        # Set controller in environment for rendering
+        self.env.controller = self.controller
 
     def simulate(self):
         self.controller.reset()

@@ -15,7 +15,7 @@ class TestPIDController(unittest.TestCase):
 
     @patch('builtins.input')
     def test_pid_controller(self, mock_input):
-        pid_controller = PIDController(P=0.001, I=0.00001, D=0.001)
+        pid_controller = PIDController(k_P=0.001, k_I=0.00001, k_D=0.001)
         # animation, parallel, save_path, sim_time, scenario, scenario random
         # seed, start_time, patients, sensor, sensor seed, insulin pump,
         # controller

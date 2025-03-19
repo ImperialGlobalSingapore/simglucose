@@ -7,9 +7,10 @@ logger = logging.getLogger(__name__)
 
 
 class Viewer(object):
-    def __init__(self, start_time, patient_name, figsize=None):
+    def __init__(self, start_time, patient_name, controller=None, figsize=None):
         self.start_time = start_time
         self.patient_name = patient_name
+        self.controller = controller
         self.fig, self.axes, self.lines = self.initialize()
         self.update()
 
@@ -57,7 +58,14 @@ class Viewer(object):
         axes[3].xaxis.set_major_locator(mdates.DayLocator())
         axes[3].xaxis.set_major_formatter(mdates.DateFormatter('\n%b %d'))
 
-        axes[0].set_title(self.patient_name)
+        # Set title with patient name and controller parameters if available
+        title = self.patient_name
+        if self.controller is not None:
+            # Check if it's a PID controller by looking for the attributes
+            if hasattr(self.controller, 'k_P') and hasattr(self.controller, 'k_I') and hasattr(self.controller, 'basal_rate'):
+                title += f"\nPID Controller (k_P={self.controller.k_P:.3f}, k_I={self.controller.k_I:.4f}, basal={self.controller.basal_rate:.2f} U/h)"
+        
+        axes[0].set_title(title)
 
         return fig, axes, lines
 

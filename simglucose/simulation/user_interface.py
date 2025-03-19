@@ -252,18 +252,22 @@ def pick_controller():
     while True:
         print("Select controller:")
         print("[1] Basal-Bolus Controller")
+        print("[2] PID Controller")
         input_value = input(">>>")
         try:
             selection = int(input_value)
         except ValueError:
             print("Please input an integer!")
             continue
-        if selection < 1 or selection > 1:
+        if selection < 1 or selection > 2:
             print("Please input a number from the list!")
         else:
             break
     if selection == 1:
         controller = BBController()
+    elif selection == 2:
+        from simglucose.controller.pid_ctrller import PIDController
+        controller = PIDController()
     return controller
 
 

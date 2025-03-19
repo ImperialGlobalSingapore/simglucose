@@ -3,6 +3,7 @@ from uuid import uuid4
 import json
 from typing import Dict, Optional, Any
 import copy
+import logging
 
 import pandas as pd
 import numpy as np
@@ -47,6 +48,9 @@ app = FastAPI(title="Glucose Simulation API")
 
 # Store patients in memory (consider a database for production)
 patient_map: Dict[str, T1DPatient] = {}
+
+# Define logger
+logger = logging.getLogger(__name__)
 
 class ModifiedT1DPatient:
     """Modified T1DPatient with enhanced insulin sensitivity"""
@@ -250,6 +254,8 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
     
     # Use specified controller
     ctrl = controller_map[request.controller_algorithm]()
+    logger.info(f"Created new {request.controller_algorithm} controller for patient {patient_id}")
+    logger.info(f"Attack scenario - Real glucose: {request.glucose_reading}, Attack glucose: {request.attack_glucose}, Carbs: {request.carbs}")
     
     # Create controller observation with fake glucose data
     ctrl_obs = CtrlObservation(request.attack_glucose)
@@ -260,11 +266,13 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
         reward=0,
         done=False,
         patient_name=patient.name,
-        meal=request.carbs
+        meal=request.carbs,
+        time=request.delta_time
     )
 
-    # Calculate insulin dose
+    # Calculate insulin dose - include both basal and bolus
     insulin = ctrl_action.basal + ctrl_action.bolus
+    logger.info(f"Controller recommended insulin: {insulin} U (basal: {ctrl_action.basal} U/h, bolus: {ctrl_action.bolus} U)")
     
     # Create patient action - use calculated insulin dose and real carb intake
     patient_action = PatientAction(insulin=insulin, CHO=request.carbs)
@@ -274,6 +282,7 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
     
     # Get new glucose level
     glucose = patient.observation.Gsub
+    logger.info(f"New glucose level after insulin delivery: {glucose} mg/dL")
     
     return {
         "glucose": glucose,
@@ -281,7 +290,9 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
         "attack_scenario": True,
         "real_glucose": request.glucose_reading,
         "attack_glucose": request.attack_glucose,
-        "controller_used": request.controller_algorithm
+        "controller_used": request.controller_algorithm,
+        "basal": ctrl_action.basal,
+        "bolus": ctrl_action.bolus
     }
 
 @app.post("/enhanced_attack_demo/{patient_id}")
@@ -295,6 +306,9 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
     if request.attack_glucose is None:
         raise HTTPException(status_code=400, detail="Attack glucose value is required")
     
+    # Check if this is actually an attack (attack_glucose != glucose_reading)
+    is_attack = abs(request.attack_glucose - request.glucose_reading) > 1.0  # Allow small differences due to floating point
+    
     original_patient = patient_map[patient_id]
     
     # Create modified patient model
@@ -306,8 +320,9 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
     
     ctrl = controller_map[request.controller_algorithm]()
     
-    # Calculate insulin dose using attack glucose value
-    ctrl_obs = CtrlObservation(request.attack_glucose)
+    # Calculate insulin dose using attack glucose value or real glucose value
+    glucose_for_controller = request.attack_glucose if is_attack else request.glucose_reading
+    ctrl_obs = CtrlObservation(glucose_for_controller)
     
     # Get controller action
     ctrl_action = ctrl.policy(
@@ -334,15 +349,22 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
     # Get new glucose level
     glucose = modified_patient.observation.Gsub
     
-    return {
+    response = {
         "glucose": glucose,
         "insulin": insulin,
-        "attack_scenario": True,
         "real_glucose": request.glucose_reading,
-        "attack_glucose": request.attack_glucose,
         "controller_used": request.controller_algorithm,
         "glucose_change": glucose - initial_glucose
     }
+    
+    # Only add attack-specific fields if it's actually an attack
+    if is_attack:
+        response["attack_scenario"] = True
+        response["attack_glucose"] = request.attack_glucose
+    else:
+        response["attack_scenario"] = False
+    
+    return response
 
 if __name__ == "__main__":
     import uvicorn

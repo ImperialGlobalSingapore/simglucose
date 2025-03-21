@@ -385,8 +385,6 @@ if __name__ == "__main__":
         if p2.t == 100:
             carb = 80
             
-        if p2.t == 200:
-            carb = 50
         # ins = 80.0 / 6.0 + basal2
         # if p.t == 150:
         #     ins = 80.0 / 12.0 + basal

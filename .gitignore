@@ -12,3 +12,5 @@
 /*.egg-info
 /*.egg
 *.zip
+*.png
+*.jsonl

@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Login to Weights & Biases (if needed)
-wandb login 8de1bed766ff6670890b703e5e1df5801ff9ae1d  # Replace with your actual W&B API key
-
 # Set W&B environment variables
 export WANDB_PROJECT="llm-glucose"  # Replace with your W&B project name
 export WANDB_NAME="Qwen2-0.5B-SFT-Run"    # Name for this specific run

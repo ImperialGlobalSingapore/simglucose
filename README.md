@@ -523,3 +523,9 @@ curl -X POST "http://localhost:8000/enhanced_attack_demo/{patient_id}" \
   -H "Content-Type: application/json" \
   -d '{"glucose_reading": 100, "attack_glucose": 300, "carbs": 0, "controller_algorithm": "pid"}'
 ```
+
+
+#### Train model
+```bash
+CUDA_VISIBLE_DEVICES=0 WANDB_MODE=disabled python train_llama.py     --model_name_or_path Qwen/Qwen2-0.5B-Instruct     --dataset_name ./glucose_questions_answers.jsonl     --learning_rate 2.0e-5     --num_train_epochs 1     --per_device_train_batch_size 8     --gradient_accumulation_steps 1     --gradient_checkpointing     --logging_steps 25     --eval_strategy steps     --eval_steps 100     --output_dir Qwen2-0.5B-SFT
+```

@@ -1,3 +1,6 @@
 [submodule "LLaVA"]
 	path = LLaVA
 	url = https://github.com/ImperialGlobalSingapore/LLaVA.git
+[submodule "chronos-forecasting"]
+	path = chronos-forecasting
+	url = https://github.com/amazon-science/chronos-forecasting

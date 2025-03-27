@@ -56,7 +56,7 @@ import torch
 from tqdm import tqdm
 from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer, AutoModel
 from transformers.models.auto.modeling_auto import MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES
-from qwen_ts import Qwen2ForCausalLM
+from qwen_ts_for_inference import Qwen2ForCausalLM
 from trl import (
     ModelConfig,
     ScriptArguments,
@@ -127,7 +127,7 @@ def main(script_args, training_args, model_args):
     ts_model = ChronosModel(chronos_config, AutoModel.from_pretrained("amazon/chronos-t5-small"))
     # model.model.ts_embeddings = ts_model
     chronos_tokenizer = chronos_config.create_tokenizer()
-    model = Qwen2ForCausalLM.from_pretrained(model_args.model_name_or_path, ts_model.model.encoder)
+    model = Qwen2ForCausalLM.from_pretrained(model_args.model_name_or_path)
     # Create tokenizer
     tokenizer = AutoTokenizer.from_pretrained(
         model_args.model_name_or_path, trust_remote_code=model_args.trust_remote_code, use_fast=True

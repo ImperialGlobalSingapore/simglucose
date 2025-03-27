@@ -73,7 +73,7 @@ class SimplePIDController(Controller):
         error = self.target_BG - current_glucose
         if error >= 0:
             if self.suspend == False:
-                logger.warning(f"Glucose too low, insulin suspend")
+                logger.info(f"Glucose too low, insulin suspend")
             self.suspend = True
             return Action(basal=0, bolus=0)
 

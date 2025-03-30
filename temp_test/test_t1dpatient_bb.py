@@ -1,4 +1,4 @@
-from simglucose.patient.t1dpatient_2 import T1DPatient, Action, CtrlObservation
+from simglucose.patient.t1dpatient import T1DPatient, Action, CtrlObservation
 from simglucose.controller.basal_bolus_ctrller import BBController
 
 from datetime import datetime, timedelta

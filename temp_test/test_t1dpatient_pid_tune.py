@@ -1,0 +1,202 @@
+import os
+import json
+from itertools import product
+from functools import partial
+import pandas as pd
+from test_t1dpatient_pid import run_sim_simple_pid_no_meal
+
+
+def test_range_simple_pid_no_meal(
+    k_p: list,
+    k_i: list,
+    k_d: list,
+    sample_time: list,
+    basal_rate: list,
+    csv_name,
+    save_csv=False,
+):
+    csv_file = f"{csv_name}.csv"
+    combinations = list(product(k_p, k_i, k_d, sample_time, basal_rate))
+    results = []
+    for combination in combinations:
+        kp, ki, kd, st, br = combination
+        rmse = run_sim_simple_pid_no_meal(kp, ki, kd, st, br)
+        results.append(rmse)
+
+    if save_csv:
+        with open(csv_file, "w") as f:
+            f.write(f"k_p,k_i,k_d,sample_time,basal_rate,rmse\n")
+            for i in range(len(combinations)):
+                f.write(
+                    f"{combinations[i][0]},{combinations[i][1]},{combinations[i][2]},{combinations[i][3]},{combinations[i][4]},{results[i]}\n"
+                )
+
+
+def find_good_br_kp():
+    # step 1
+    # k_p = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+    # k_i = [0]
+    # k_d = [0]
+    # sample_time = [5]
+    # basal_rate = [0, 0.05, 0.1, 0.15, 0.2]
+    # csv_name = "pid_no_meal_tunning_step1"
+
+    # step 2
+    # k_p = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
+    # k_i = [0]
+    # k_d = [0]
+    # sample_time = [5]
+    # basal_rate = [0.01, 0.02, 0.05, 0.06, 0.07]
+    # csv_name = "pid_no_meal_tunning_step2"
+    # test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
+
+    # step 3
+    k_p = [1e-6, 1e-5, 1e-4, 1e-3]
+    k_i = [0]
+    k_d = [0]
+    sample_time = [5]
+    basal_rate = [0.05, 0.06, 0.07]
+    csv_name = "pid_no_meal_tunning_step3"
+    test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
+
+
+def find_good_ki_kd():
+    k_p = [1e-4, 1e-5, 1e-6]
+    basal_rate = [0.05, 0.06, 0.07, 0.08]
+    k_i = [1e-10, 5e-9, 1e-7]
+    k_d = [0, 1e-8, 1e-7]
+    sample_time = [5]
+    csv_name = "pid_no_meal_tunning_step4"
+    test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
+
+
+def run_single_simulation(
+    params: tuple, sample_time: int, sim_time: int, patient_name: str
+):
+    kp, ki, kd, br = params
+    try:
+        rmse = run_sim_simple_pid_no_meal(
+            k_P=kp,
+            k_I=ki,
+            k_D=kd,
+            sample_time=sample_time,
+            basal_rate=br,
+            patient_name=patient_name,
+            sim_time=sim_time,
+            save_fig=False,
+            show_fig=False,
+        )
+        return {"k_p": kp, "k_i": ki, "k_d": kd, "basal_rate": br, "rmse": rmse}
+    except Exception as e:
+        print(f"Error running simulation with params {params}: {str(e)}")
+        return None
+
+
+def parallel_test_pid_parameters(
+    k_p_range=[1e-6, 1e-5, 1e-4, 1e-3],
+    k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7],
+    k_d_range=[0, 1e-8, 1e-7],
+    sample_time=5,
+    basal_rate=[0, 0.05, 0.1, 0.15, 0.2],
+    patient_name="adolescent#003",
+    sim_time=2000,
+    n_jobs=4,
+):
+    """
+    Run parallel simulations to test different PID parameters
+    """
+    from multiprocessing import Pool
+    from itertools import product
+
+    # Generate parameter combinations
+    param_combinations = list(product(k_p_range, k_i_range, k_d_range, basal_rate))
+
+    # Filter combinations where ki is smaller than kp (if ki is not 0)
+    valid_combinations = [
+        (kp, ki, kd, br) for kp, ki, kd, br in param_combinations if ki == 0 or ki < kp
+    ]
+
+    print(f"Testing {len(valid_combinations)} parameter combinations...")
+
+    simulation_with_fixed_params = partial(
+        run_single_simulation,
+        sample_time=sample_time,
+        sim_time=sim_time,
+        patient_name=patient_name,
+    )
+    # Run parallel simulations
+    with Pool(processes=n_jobs) as pool:
+        results = pool.map(simulation_with_fixed_params, valid_combinations)
+
+    # Filter out failed simulations and convert to DataFrame
+    results = [r for r in results if r is not None]
+    df = pd.DataFrame(results)
+
+    # append results to CSV
+    csv_file = f"{patient_name}_pid_tuning_results.csv"
+    if os.path.exists(csv_file):
+        df.to_csv(csv_file, index=False, mode="a", header=False)
+    else:
+        df.to_csv(csv_file, index=False)
+
+    # Find best 5 parameters
+    best_params = df.sort_values(by="rmse").head(5)
+    print("\nBest 5 Parameters:")
+    json_file = f"{patient_name}_best_5_params_{sample_time}min_{sim_time}min.json"
+    with open(json_file, "w") as f:
+        json.dump(best_params.to_dict(orient="records"), f)
+
+    return json_file
+
+
+def plot_best_5_params(
+    json_file: str, patient_name: str, sample_time: int, sim_time: int
+):
+    with open(json_file, "r") as f:
+        best_params = json.load(f)
+    print(best_params)
+
+    for i, row in enumerate(best_params):
+        print(f"No.{i+1}")
+        print(
+            f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, basal_rate={row['basal_rate']}"
+        )
+        print(f"RMSE={row['rmse']:.4f}")
+
+        # Run simulation with best parameters and save plot
+        run_sim_simple_pid_no_meal(
+            k_P=row["k_p"],
+            k_I=row["k_i"],
+            k_D=row["k_d"],
+            sample_time=sample_time,
+            basal_rate=row["basal_rate"],
+            patient_name=patient_name,
+            sim_time=sim_time,
+            save_fig=True,
+            log=False,
+        )
+
+
+if __name__ == "__main__":
+
+    # find good k_p and br range
+    # find_good_br_kp()
+
+    # find good k_i and k_d range
+    # find_good_ki_kd()
+
+    json_file = parallel_test_pid_parameters(
+        k_p_range=[1e-7, 1e-6, 1e-5, 1e-4, 1e-3],
+        k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7],
+        k_d_range=[0, 1e-8, 1e-7],
+        basal_rate=[0, 0.05, 0.1, 0.15, 0.2],
+        n_jobs=64,  # Adjust based on your CPU cores
+    )
+
+    # plot best 5 params
+    plot_best_5_params(
+        json_file=json_file,
+        patient_name="adolescent#003",
+        sample_time=5,
+        sim_time=2000,
+    )

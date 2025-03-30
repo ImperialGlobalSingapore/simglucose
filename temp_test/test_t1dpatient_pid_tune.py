@@ -1,10 +1,16 @@
 import os
 import json
-
 import pandas as pd
+from pathlib import Path
+import numpy as np
 
 from test_t1dpatient_pid import run_sim_simple_pid_no_meal
 from test_utils import get_patients
+
+# current file path
+file_path = Path(__file__).resolve()
+parent_folder = file_path.parent
+result_folder = parent_folder / "results"
 
 def test_range_simple_pid_no_meal(
     k_p: list,
@@ -180,31 +186,67 @@ def parallel_test_pid_parameters(
     return json_file
 
 
-def plot_best_5_params(
-    json_file: str, patient_name: str, sample_time: int, sim_time: int
-):
+def plot_best_N_params(json_file: str, sample_time: int, sim_time: int, N: int = 1):
+    if N > 5:
+        N = 5
     with open(json_file, "r") as f:
-        best_params = json.load(f)
-    print(best_params)
+        best_params_by_patient = json.load(f)
 
-    for i, row in enumerate(best_params):
-        print(f"No.{i+1}")
-        print(
-            f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
-        )
+    for patient_name, best_params in best_params_by_patient.items():
+        print(f"patient_name: {patient_name}")
+        for i, row in enumerate(best_params):
+            if i + 1 > N:
+                break
+            print(
+                f"No.{i+1}: "
+                f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, "
+                f"basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
+            )
 
-        # Run simulation with best parameters and save plot
-        run_sim_simple_pid_no_meal(
-            k_P=row["k_p"],
-            k_I=row["k_i"],
-            k_D=row["k_d"],
-            sample_time=sample_time,
-            basal_rate=row["basal_rate"],
-            patient_name=patient_name,
-            sim_time=sim_time,
-            save_fig=True,
-            log=False,
-        )
+            # Run simulation with best parameters and save plot
+            run_sim_simple_pid_no_meal(
+                k_P=row["k_p"],
+                k_I=row["k_i"],
+                k_D=row["k_d"],
+                sample_time=sample_time,
+                basal_rate=row["basal_rate"],
+                patient_name=patient_name,
+                sim_time=sim_time,
+                save_fig=True,
+                log=False,
+            )
+
+
+def find_best_params_by_group():
+    # find average params for each patient group
+    groups = ["adolescent", "adult", "child"]
+    groups_params = {"adolescent": {}, "adult": {}, "child": {}}
+    json_file = result_folder / "pid_no_meal_tunning_step5_5min_2000min.json"
+    with open(json_file, "r") as f:
+        best_params_by_patient = json.load(f)
+
+    # average for first N params
+    N = 1
+    for patient_name, best_params in best_params_by_patient.items():
+        group = patient_name.split("#")[0]
+        print(f"patient_name: {patient_name}, group: {group}")
+        for p in best_params[:N]:
+            groups_params[group].setdefault("k_p", []).append(p["k_p"])
+            groups_params[group].setdefault("k_i", []).append(p["k_i"])
+            groups_params[group].setdefault("k_d", []).append(p["k_d"])
+            groups_params[group].setdefault("basal_rate", []).append(p["basal_rate"])
+
+    save_json_file = (
+        result_folder / f"pid_no_meal_tunning_step5_5min_2000min_avg_first{N}.json"
+    )
+
+    with open(save_json_file, "w") as f:
+        json.dump(groups_params, f)
+
+    for group, params in groups_params.items():
+        print(f"group: {group}")
+        for k, v in params.items():
+            print(f"{k}: {np.mean(v):.1e}")
 
 
 if __name__ == "__main__":
@@ -215,27 +257,27 @@ if __name__ == "__main__":
     # find good k_i and k_d range
     # find_good_ki_kd()
 
-    json_file = json_file = parallel_test_pid_parameters(
-        k_p_range=[1e-9],
-        k_i_range=[0],
-        k_d_range=[0],
-        basal_rate=[0.1],
-        n_jobs=8,
-    )
+    # json_file = json_file = parallel_test_pid_parameters(
+    #     k_p_range=[1e-9],
+    #     k_i_range=[0],
+    #     k_d_range=[0],
+    #     basal_rate=[0.1],
+    #     n_jobs=8,
+    # )
 
     # json_file = parallel_test_pid_parameters(
     #     k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
     #     k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
     #     k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
     #     basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
-    #     n_jobs=128,
+    #     n_jobs=64,
     # )
 
     # plot best 5 params
-    # json_file = "adolescent#003_best_5_params_5min_2000min.json"
-    # plot_best_5_params(
-    #     json_file=json_file,
-    #     patient_name="adolescent#003",
-    #     sample_time=5,
-    #     sim_time=2000,
-    # )
+    json_file = result_folder / "pid_no_meal_tunning_step5_5min_2000min.json"
+    plot_best_N_params(
+        json_file=json_file,
+        sample_time=5,
+        sim_time=2000,
+        N=1,
+    )

@@ -22,11 +22,10 @@ best_basal_folder = parent_folder / "results" / "best_basal_rate"
 
 def test_patient(
     patient_name="adolescent#003",
-    basal_rate=0.2,
+    basal_rate=None,
     fig_title=None,
-    use_basal=False,
     save_fig=False,
-    show_fig=True,
+    show_fig=False,
 ):
     test_patient_dir = img_dir / f"test_patient"
     test_patient_dir.mkdir(exist_ok=True)
@@ -41,7 +40,7 @@ def test_patient(
     while p.t < 2000:
         carb = 0
 
-        if use_basal:
+        if basal_rate is not None:
             act = Action(insulin=basal_rate, CHO=carb)
         else:
             act = Action(insulin=0, CHO=carb)
@@ -53,7 +52,7 @@ def test_patient(
         p.step(act)
 
     if fig_title is None:
-        if use_basal:
+        if basal_rate is not None:
             fig_title = f"test_patient_{patient_name}_basal_{basal_rate}"
         else:
             fig_title = f"test_patient_{patient_name}_no_basal"
@@ -235,6 +234,15 @@ def combine_basal_rate():
         json.dump(patient_best_basal_rate, f)
 
 
+def save_best_basal_rate_fig():
+    patient_best_basal_rate = json.load(
+        open(best_basal_folder / "patient_best_basal_rate.json")
+    )
+
+    for patient_name, basal_rate in patient_best_basal_rate.items():
+        test_patient(patient_name=patient_name, basal_rate=basal_rate, save_fig=True)
+
+
 if __name__ == "__main__":
     # test patient and verify the best basal rate
     # test_patient(patient_name="adolescent#003", use_basal=True, basal_rate=0.011)
@@ -259,4 +267,7 @@ if __name__ == "__main__":
     # get_best_basal_rate()
 
     # combine basal rate
-    combine_basal_rate()
+    # combine_basal_rate()
+
+    # save best basal rate fig
+    save_best_basal_rate_fig()

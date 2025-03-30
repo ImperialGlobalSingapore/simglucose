@@ -271,14 +271,41 @@ if __name__ == "__main__":
     # best params
     # k_P=7.5e-05, k_I=1e-09, k_D=0, sample_time=5, basal_rate=0.06
     # run for all patients
-    patients = get_patients()
-    for patient in patients:
-        run_sim_simple_pid_no_meal(
-            k_P=7.5e-05,
-            k_I=1e-09,
-            k_D=0,
-            sample_time=5,
-            basal_rate=0.06,
-            patient_name=patient,
-            save_fig=True,
-        )
+    # patients = get_patients()
+    # for patient in patients:
+    #     run_sim_simple_pid_no_meal(
+    #         k_P=7.5e-05,
+    #         k_I=1e-09,
+    #         k_D=0,
+    #         sample_time=5,
+    #         basal_rate=0.06,
+    #         patient_name=patient,
+    #         save_fig=True,
+    #     )
+
+    # best params by group
+    # group: adolescent
+    # k_p: 1.0e-03
+    # k_i: 6.2e-07
+    # k_d: 8.0e-02
+    # basal_rate: 7.2e-02
+    # group: adult
+    # k_p: 1.0e-03
+    # k_i: 9.1e-07
+    # k_d: 3.0e-02
+    # basal_rate: 9.8e-02
+    # group: child
+    # k_p: 8.2e-04
+    # k_i: 6.4e-07
+    # k_d: 8.0e-02
+    # basal_rate: 3.1e-02
+    run_sim_simple_pid_no_meal(
+        k_P=1.0e-03,
+        k_I=1e-07,
+        k_D=0.1,
+        sample_time=5,
+        basal_rate=0.1,
+        patient_name="adolescent#003",
+        save_fig=True,
+        show_fig=True,
+    )

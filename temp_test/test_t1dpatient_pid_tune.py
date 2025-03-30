@@ -4,7 +4,7 @@ from itertools import product
 from functools import partial
 import pandas as pd
 from test_t1dpatient_pid import run_sim_simple_pid_no_meal
-
+from test_utils import get_patients
 
 def test_range_simple_pid_no_meal(
     k_p: list,
@@ -71,9 +71,11 @@ def find_good_ki_kd():
 
 
 def run_single_simulation(
-    params: tuple, sample_time: int, sim_time: int, patient_name: str
+    params: tuple,
+    sample_time: int,
+    sim_time: int,
 ):
-    kp, ki, kd, br = params
+    kp, ki, kd, br, patient_name = params
     try:
         rmse = run_sim_simple_pid_no_meal(
             k_P=kp,
@@ -98,7 +100,6 @@ def parallel_test_pid_parameters(
     k_d_range=[0, 1e-8, 1e-7],
     sample_time=5,
     basal_rate=[0, 0.05, 0.1, 0.15, 0.2],
-    patient_name="adolescent#003",
     sim_time=2000,
     n_jobs=4,
 ):
@@ -109,11 +110,17 @@ def parallel_test_pid_parameters(
     from itertools import product
 
     # Generate parameter combinations
-    param_combinations = list(product(k_p_range, k_i_range, k_d_range, basal_rate))
+    patients = get_patients()
+
+    param_combinations = list(
+        product(k_p_range, k_i_range, k_d_range, basal_rate, patients)
+    )
 
     # Filter combinations where ki is smaller than kp (if ki is not 0)
     valid_combinations = [
-        (kp, ki, kd, br) for kp, ki, kd, br in param_combinations if ki == 0 or ki < kp
+        (kp, ki, kd, br, patient_name)
+        for kp, ki, kd, br, patient_name in param_combinations
+        if ki == 0 or ki < kp
     ]
 
     print(f"Testing {len(valid_combinations)} parameter combinations...")
@@ -122,7 +129,6 @@ def parallel_test_pid_parameters(
         run_single_simulation,
         sample_time=sample_time,
         sim_time=sim_time,
-        patient_name=patient_name,
     )
     # Run parallel simulations
     with Pool(processes=n_jobs) as pool:
@@ -132,19 +138,16 @@ def parallel_test_pid_parameters(
     results = [r for r in results if r is not None]
     df = pd.DataFrame(results)
 
-    # append results to CSV
-    csv_file = f"{patient_name}_pid_tuning_results.csv"
-    if os.path.exists(csv_file):
-        df.to_csv(csv_file, index=False, mode="a", header=False)
-    else:
-        df.to_csv(csv_file, index=False)
-
-    # Find best 5 parameters
-    best_params = df.sort_values(by="rmse").head(5)
-    print("\nBest 5 Parameters:")
-    json_file = f"{patient_name}_best_5_params_{sample_time}min_{sim_time}min.json"
+    # Find best 5 parameters for each patient and dump to one json file
+    best_params_dict = {}
+    for patient_name in patients:
+        best_params = (
+            df[df["patient_name"] == patient_name].sort_values(by="rmse").head(5)
+        )
+        best_params_dict[patient_name] = best_params.to_dict(orient="records")
+    json_file = f"pid_no_meal_tunning_step5_{sample_time}min_{sim_time}min.json"
     with open(json_file, "w") as f:
-        json.dump(best_params.to_dict(orient="records"), f)
+        json.dump(best_params_dict, f)
 
     return json_file
 
@@ -159,9 +162,8 @@ def plot_best_5_params(
     for i, row in enumerate(best_params):
         print(f"No.{i+1}")
         print(
-            f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, basal_rate={row['basal_rate']}"
+            f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
         )
-        print(f"RMSE={row['rmse']:.4f}")
 
         # Run simulation with best parameters and save plot
         run_sim_simple_pid_no_meal(
@@ -186,14 +188,15 @@ if __name__ == "__main__":
     # find_good_ki_kd()
 
     json_file = parallel_test_pid_parameters(
-        k_p_range=[1e-7, 1e-6, 1e-5, 1e-4, 1e-3],
-        k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7],
-        k_d_range=[0, 1e-8, 1e-7],
-        basal_rate=[0, 0.05, 0.1, 0.15, 0.2],
-        n_jobs=64,  # Adjust based on your CPU cores
+        k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+        k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+        k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+        basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
+        n_jobs=128,
     )
 
     # plot best 5 params
+    json_file = "adolescent#003_best_5_params_5min_2000min.json"
     plot_best_5_params(
         json_file=json_file,
         patient_name="adolescent#003",

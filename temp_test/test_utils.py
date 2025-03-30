@@ -34,10 +34,10 @@ def save_name_pattern(k_P, k_I, k_D, sample_time, basal_rate, remark=""):
     return f"{remark}pid_st{sample_time}_br{basal_rate}_p{k_P}_i{k_I}_d{k_D}"
 
 
-def plot_and_save(img_dir, t, BG, CHO, insulin, target_BG, file_name):
+def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
     fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
     _plot(fig, ax, t, BG, CHO, insulin, target_BG, file_name)
-    fig.savefig(img_dir / f"{file_name}.png")
+    fig.savefig(f"{file_name}.png")
     plt.close(fig)
 
 

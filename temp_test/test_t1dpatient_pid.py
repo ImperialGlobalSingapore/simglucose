@@ -9,7 +9,13 @@ from simglucose.patient.t1dpatient import T1DPatient, Action, PATIENT_PARA_FILE
 from simglucose.patient.t1dpatient_2 import CtrlObservation
 from simglucose.controller.simple_pid_ctrller import SimplePIDController
 
-from test_utils import plot_and_show, plot_and_save, save_name_pattern, get_rmse
+from test_utils import (
+    plot_and_show,
+    plot_and_save,
+    save_name_pattern,
+    get_rmse,
+    get_patients,
+)
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -123,7 +129,7 @@ def run_sim_simple_pid_single_meal(k_P, k_I, k_D, sample_time=5):
         k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark="simple_"
     )
     # save_to_csv(single_meal_log_dir, t, BG, CHO, insulin, file_name)
-    plot_and_save(single_meal_img_dir, t, BG, CHO, insulin, ctrl.target_BG, file_name)
+    plot_and_save(t, BG, CHO, insulin, ctrl.target_BG, file_name)
     plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
 """
 
@@ -188,10 +194,12 @@ def run_sim_simple_pid_no_meal(
         p.step(act)
 
     file_name = save_name_pattern(
-        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark="simple_"
+        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark=f"{patient_name}_simple_"
     )
     if save_fig:
-        plot_and_save(no_meal_img_dir, t, BG, CHO, insulin, ctrl.target_BG, file_name)
+        plot_and_save(
+            t, BG, CHO, insulin, ctrl.target_BG, no_meal_img_dir / f"{file_name}.png"
+        )
     if show_fig:
         plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
 
@@ -250,12 +258,27 @@ def run_sim_simple_pid_attack(k_P, k_I, k_D, sample_time=5):
         k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark="simple_"
     )
     plot_and_save(
-        attack_no_meal_img_dir, t, BG, CHO, insulin, ctrl.target_BG, file_name
+        t, BG, CHO, insulin, ctrl.target_BG, attack_no_meal_img_dir / f"{file_name}.png"
     )
     plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
 
 
 if __name__ == "__main__":
-    run_sim_simple_pid_no_meal(
-        k_P=0.001, k_I=0.00001, k_D=0.001, sample_time=5, basal_rate=0.2
-    )
+    # run_sim_simple_pid_no_meal(
+    #     k_P=0.001, k_I=0.00001, k_D=0.001, sample_time=5, basal_rate=0.2
+    # )
+
+    # best params
+    # k_P=7.5e-05, k_I=1e-09, k_D=0, sample_time=5, basal_rate=0.06
+    # run for all patients
+    patients = get_patients()
+    for patient in patients:
+        run_sim_simple_pid_no_meal(
+            k_P=7.5e-05,
+            k_I=1e-09,
+            k_D=0,
+            sample_time=5,
+            basal_rate=0.06,
+            patient_name=patient,
+            save_fig=True,
+        )

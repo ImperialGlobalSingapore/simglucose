@@ -1,9 +1,8 @@
 import os
 import json
-from itertools import product
-from functools import partial
+
 import pandas as pd
-from tqdm import tqdm
+
 from test_t1dpatient_pid import run_sim_simple_pid_no_meal
 from test_utils import get_patients
 
@@ -16,6 +15,8 @@ def test_range_simple_pid_no_meal(
     csv_name,
     save_csv=False,
 ):
+    from itertools import product
+
     csv_file = f"{csv_name}.csv"
     combinations = list(product(k_p, k_i, k_d, sample_time, basal_rate))
     results = []
@@ -117,6 +118,8 @@ def parallel_test_pid_parameters(
     """
     from multiprocessing import Pool
     from itertools import product
+    from functools import partial
+    from tqdm import tqdm
 
     # Generate parameter combinations
     patients = get_patients()

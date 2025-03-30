@@ -3,6 +3,7 @@ import json
 from itertools import product
 from functools import partial
 import pandas as pd
+from tqdm import tqdm
 from test_t1dpatient_pid import run_sim_simple_pid_no_meal
 from test_utils import get_patients
 
@@ -87,8 +88,16 @@ def run_single_simulation(
             sim_time=sim_time,
             save_fig=False,
             show_fig=False,
+            log=False,
         )
-        return {"k_p": kp, "k_i": ki, "k_d": kd, "basal_rate": br, "rmse": rmse}
+        return {
+            "k_p": kp,
+            "k_i": ki,
+            "k_d": kd,
+            "basal_rate": br,
+            "patient_name": patient_name,
+            "rmse": rmse,
+        }
     except Exception as e:
         print(f"Error running simulation with params {params}: {str(e)}")
         return None
@@ -130,9 +139,18 @@ def parallel_test_pid_parameters(
         sample_time=sample_time,
         sim_time=sim_time,
     )
+
     # Run parallel simulations
     with Pool(processes=n_jobs) as pool:
-        results = pool.map(simulation_with_fixed_params, valid_combinations)
+        results = list(
+            tqdm(
+                pool.imap(simulation_with_fixed_params, valid_combinations),
+                total=len(valid_combinations),
+                desc="Running simulations",
+                unit="sim",
+                ncols=100,  # Fixed width for cleaner output
+            )
+        )
 
     # Filter out failed simulations and convert to DataFrame
     results = [r for r in results if r is not None]
@@ -141,10 +159,17 @@ def parallel_test_pid_parameters(
     # Find best 5 parameters for each patient and dump to one json file
     best_params_dict = {}
     for patient_name in patients:
-        best_params = (
-            df[df["patient_name"] == patient_name].sort_values(by="rmse").head(5)
-        )
-        best_params_dict[patient_name] = best_params.to_dict(orient="records")
+        patient_results = df[df["patient_name"] == patient_name]
+        if not patient_results.empty:
+            best_params = patient_results.sort_values(by="rmse").head(5)
+            best_params_dict[patient_name] = best_params.to_dict(orient="records")
+            print(f"\nBest parameters for {patient_name}:")
+            for i, row in best_params.iterrows():
+                print(
+                    f"k_p={row['k_p']}, k_i={row['k_i']}, k_d={row['k_d']}, "
+                    f"basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
+                )
+
     json_file = f"pid_no_meal_tunning_step5_{sample_time}min_{sim_time}min.json"
     with open(json_file, "w") as f:
         json.dump(best_params_dict, f)
@@ -187,19 +212,27 @@ if __name__ == "__main__":
     # find good k_i and k_d range
     # find_good_ki_kd()
 
-    json_file = parallel_test_pid_parameters(
-        k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
-        k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
-        k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
-        basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
-        n_jobs=128,
+    json_file = json_file = parallel_test_pid_parameters(
+        k_p_range=[1e-9],
+        k_i_range=[0],
+        k_d_range=[0],
+        basal_rate=[0.1],
+        n_jobs=8,
     )
 
+    # json_file = parallel_test_pid_parameters(
+    #     k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
+    #     n_jobs=128,
+    # )
+
     # plot best 5 params
-    json_file = "adolescent#003_best_5_params_5min_2000min.json"
-    plot_best_5_params(
-        json_file=json_file,
-        patient_name="adolescent#003",
-        sample_time=5,
-        sim_time=2000,
-    )
+    # json_file = "adolescent#003_best_5_params_5min_2000min.json"
+    # plot_best_5_params(
+    #     json_file=json_file,
+    #     patient_name="adolescent#003",
+    #     sample_time=5,
+    #     sim_time=2000,
+    # )

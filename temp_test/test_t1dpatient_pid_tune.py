@@ -361,6 +361,15 @@ if __name__ == "__main__":
     #     scenario=Scenario.SINGLE_MEAL,
     # )
 
+    # json_file = parallel_test_pid_parameters(
+    #     k_p_range=[1e-7, 1e-6, 1e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 1e-1],
+    #     k_i_range=[0, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6],
+    #     k_d_range=[0, 1e-2, 5e-2, 0.1, 0.3, 0.5, 0.7, 1],
+    #     basal_rate=[0, 0.04, 0.08, 0.1, 0.2],
+    #     n_jobs=64,
+    #     scenario=Scenario.SINGLE_MEAL,
+    # )
+
     # plot best 5 params
     json_file = result_folder / "pid_single_meal_tunning_step5_5min_2000min.json"
     plot_best_N_params(

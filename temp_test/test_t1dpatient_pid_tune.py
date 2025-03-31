@@ -289,28 +289,33 @@ def plot_best_N_params(
                 )
 
 
-def find_best_params_by_group():
+def find_best_params_by_group(
+    source_json_file_name: str,
+    save_json_file_name: str,
+):
     # find average params for each patient group
     groups = ["adolescent", "adult", "child"]
     groups_params = {"adolescent": {}, "adult": {}, "child": {}}
-    json_file = result_folder / "pid_no_meal_tunning_step5_5min_2000min.json"
-    with open(json_file, "r") as f:
+    source_json_file = result_folder / source_json_file_name
+
+    with open(source_json_file, "r") as f:
         best_params_by_patient = json.load(f)
 
     # average for first N params
     N = 1
     for patient_name, best_params in best_params_by_patient.items():
         group = patient_name.split("#")[0]
-        print(f"patient_name: {patient_name}, group: {group}")
+        print(f"patient_name: {patient_name}, group: {group}", end=" ")
         for p in best_params[:N]:
             groups_params[group].setdefault("k_p", []).append(p["k_p"])
             groups_params[group].setdefault("k_i", []).append(p["k_i"])
             groups_params[group].setdefault("k_d", []).append(p["k_d"])
             groups_params[group].setdefault("basal_rate", []).append(p["basal_rate"])
+            print(
+                f"k_p: {p['k_p']}, k_i: {p['k_i']}, k_d: {p['k_d']}, basal_rate: {p['basal_rate']}"
+            )
 
-    save_json_file = (
-        result_folder / f"pid_no_meal_tunning_step5_5min_2000min_avg_first{N}.json"
-    )
+    save_json_file = result_folder / save_json_file_name
 
     with open(save_json_file, "w") as f:
         json.dump(groups_params, f)
@@ -364,3 +369,18 @@ if __name__ == "__main__":
         sim_time=2000,
         N=1,
     )
+
+    # find_best_params_by_group(
+    #     source_json_file_name="pid_no_meal_tunning_step5_5min_2000min_refined.json",
+    #     save_json_file_name="pid_no_meal_tunning_step5_5min_2000min_refined_avg_first1.json",
+    # )
+
+    # find_best_params_by_group(
+    #     source_json_file_name="pid_no_meal_tunning_step5_5min_2000min.json",
+    #     save_json_file_name="pid_no_meal_tunning_step5_5min_2000min_avg_first1.json",
+    # )
+
+    # find_best_params_by_group(
+    #     source_json_file_name="pid_single_meal_tunning_step5_5min_2000min.json",
+    #     save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_avg_first1.json",
+    # )

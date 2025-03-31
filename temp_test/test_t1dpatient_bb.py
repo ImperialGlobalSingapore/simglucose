@@ -1,9 +1,11 @@
-from simglucose.patient.t1dpatient import T1DPatient, Action, CtrlObservation
+from simglucose.patient.t1dpatient import T1DPatient, Action
+from simglucose.patient.t1dpatient_2 import CtrlObservation
 from simglucose.controller.basal_bolus_ctrller import BBController
 
 from datetime import datetime, timedelta
 import logging
 
+from test_utils import plot_and_show
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,8 +43,8 @@ while p.t < 2000:
     if p.t == 100:
         carb = 80
 
-    if p.t == 200:
-        carb = 50
+    # if p.t == 200:
+    #     carb = 50
 
     ctrl_obs = CtrlObservation(p.observation.Gsub)
     ctrl_action = ctrl.policy(
@@ -64,17 +66,4 @@ while p.t < 2000:
     p.step(act)
 
 
-import matplotlib.pyplot as plt
-
-fig, ax = plt.subplots(3, sharex=True)
-ax[0].plot(t, BG)
-ax[0].grid()
-ax[0].set_ylabel("BG (mg/dL)")
-ax[1].plot(t, CHO)
-ax[1].grid()
-ax[1].set_ylabel("CHO (g)")
-ax[2].plot(t, insulin)
-ax[2].grid()
-ax[2].set_ylabel("Insulin (U)")
-ax[2].set_xlabel("Time (min)")
-plt.show()
+plot_and_show(t, BG, CHO, insulin, ctrl.target, "bb_controller")

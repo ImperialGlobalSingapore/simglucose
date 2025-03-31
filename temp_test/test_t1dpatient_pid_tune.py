@@ -3,14 +3,26 @@ import json
 import pandas as pd
 from pathlib import Path
 import numpy as np
+from enum import Enum
 
-from test_t1dpatient_pid import run_sim_simple_pid_no_meal
+from test_t1dpatient_pid import (
+    run_sim_simple_pid_no_meal,
+    run_sim_simple_pid_single_meal,
+    run_sim_simple_pid_attack,
+)
 from test_utils import get_patients
 
 # current file path
 file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 result_folder = parent_folder / "results"
+
+
+class Scenario(Enum):
+    NO_MEAL = "no_meal"
+    SINGLE_MEAL = "single_meal"
+    ATTACK = "attack"
+
 
 def test_range_simple_pid_no_meal(
     k_p: list,
@@ -82,29 +94,55 @@ def run_single_simulation(
     params: tuple,
     sample_time: int,
     sim_time: int,
+    scenario: Scenario,
 ):
     kp, ki, kd, br, patient_name = params
     try:
-        rmse = run_sim_simple_pid_no_meal(
-            k_P=kp,
-            k_I=ki,
-            k_D=kd,
-            sample_time=sample_time,
-            basal_rate=br,
-            patient_name=patient_name,
-            sim_time=sim_time,
-            save_fig=False,
-            show_fig=False,
-            log=False,
-        )
-        return {
-            "k_p": kp,
-            "k_i": ki,
-            "k_d": kd,
-            "basal_rate": br,
-            "patient_name": patient_name,
-            "rmse": rmse,
-        }
+        if scenario == Scenario.NO_MEAL:
+            rmse = run_sim_simple_pid_no_meal(
+                k_P=kp,
+                k_I=ki,
+                k_D=kd,
+                sample_time=sample_time,
+                basal_rate=br,
+                patient_name=patient_name,
+                sim_time=sim_time,
+                save_fig=False,
+                show_fig=False,
+                log=False,
+            )
+            return {
+                "k_p": kp,
+                "k_i": ki,
+                "k_d": kd,
+                "basal_rate": br,
+                "patient_name": patient_name,
+                "rmse": rmse,
+            }
+        elif scenario == Scenario.SINGLE_MEAL:
+            rmse = run_sim_simple_pid_single_meal(
+                k_P=kp,
+                k_I=ki,
+                k_D=kd,
+                sample_time=sample_time,
+                basal_rate=br,
+                patient_name=patient_name,
+                sim_time=sim_time,
+                save_fig=False,
+                show_fig=False,
+                log=False,
+            )
+            return {
+                "k_p": kp,
+                "k_i": ki,
+                "k_d": kd,
+                "basal_rate": br,
+                "patient_name": patient_name,
+                "rmse": rmse,
+            }
+        # elif scenario == Scenario.ATTACK: # skip attack for now
+        else:
+            raise ValueError(f"Invalid scenario: {scenario}")
     except Exception as e:
         print(f"Error running simulation with params {params}: {str(e)}")
         return None
@@ -118,6 +156,7 @@ def parallel_test_pid_parameters(
     basal_rate=[0, 0.05, 0.1, 0.15, 0.2],
     sim_time=2000,
     n_jobs=4,
+    scenario: Scenario = Scenario.NO_MEAL,
 ):
     """
     Run parallel simulations to test different PID parameters
@@ -147,6 +186,7 @@ def parallel_test_pid_parameters(
         run_single_simulation,
         sample_time=sample_time,
         sim_time=sim_time,
+        scenario=scenario,
     )
 
     # Run parallel simulations
@@ -179,18 +219,35 @@ def parallel_test_pid_parameters(
                     f"basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
                 )
 
-    json_file = f"pid_no_meal_tunning_step5_{sample_time}min_{sim_time}min.json"
+    json_file = result_folder / (
+        f"pid_{scenario.value}_tunning_step5_{sample_time}min_{sim_time}min.json"
+    )
     with open(json_file, "w") as f:
         json.dump(best_params_dict, f)
 
     return json_file
 
 
-def plot_best_N_params(json_file: str, sample_time: int, sim_time: int, N: int = 1):
+def plot_best_N_params(
+    json_file: str,
+    sample_time: int,
+    sim_time: int,
+    N: int = 1,
+    save_fig=True,
+):
     if N > 5:
         N = 5
+
     with open(json_file, "r") as f:
         best_params_by_patient = json.load(f)
+
+    scenario = Path(json_file).stem.split("_")[1]
+    if scenario == "no":
+        scenario = Scenario.NO_MEAL
+    elif scenario == "single":
+        scenario = Scenario.SINGLE_MEAL
+    else:
+        raise ValueError(f"Invalid scenario: {scenario}")
 
     for patient_name, best_params in best_params_by_patient.items():
         print(f"patient_name: {patient_name}")
@@ -203,18 +260,33 @@ def plot_best_N_params(json_file: str, sample_time: int, sim_time: int, N: int =
                 f"basal_rate={row['basal_rate']}, rmse={row['rmse']:.4f}"
             )
 
-            # Run simulation with best parameters and save plot
-            run_sim_simple_pid_no_meal(
-                k_P=row["k_p"],
-                k_I=row["k_i"],
-                k_D=row["k_d"],
-                sample_time=sample_time,
-                basal_rate=row["basal_rate"],
-                patient_name=patient_name,
-                sim_time=sim_time,
-                save_fig=True,
-                log=False,
-            )
+            if scenario == Scenario.NO_MEAL:
+                # Run simulation with best parameters and save plot
+                run_sim_simple_pid_no_meal(
+                    k_P=row["k_p"],
+                    k_I=row["k_i"],
+                    k_D=row["k_d"],
+                    sample_time=sample_time,
+                    basal_rate=row["basal_rate"],
+                    patient_name=patient_name,
+                    sim_time=sim_time,
+                    save_fig=save_fig,
+                    show_fig=False,
+                    log=False,
+                )
+            elif scenario == Scenario.SINGLE_MEAL:
+                run_sim_simple_pid_single_meal(
+                    k_P=row["k_p"],
+                    k_I=row["k_i"],
+                    k_D=row["k_d"],
+                    sample_time=sample_time,
+                    basal_rate=row["basal_rate"],
+                    patient_name=patient_name,
+                    sim_time=sim_time,
+                    save_fig=save_fig,
+                    show_fig=False,
+                    log=False,
+                )
 
 
 def find_best_params_by_group():
@@ -263,6 +335,7 @@ if __name__ == "__main__":
     #     k_d_range=[0],
     #     basal_rate=[0.1],
     #     n_jobs=8,
+    #     scenario=Scenario.SINGLE_MEAL,
     # )
 
     # json_file = parallel_test_pid_parameters(
@@ -271,10 +344,20 @@ if __name__ == "__main__":
     #     k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
     #     basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
     #     n_jobs=64,
+    #     scenario=Scenario.NO_MEAL,
+    # )
+
+    # json_file = parallel_test_pid_parameters(
+    #     k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     k_d_range=[0, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
+    #     basal_rate=[0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1],
+    #     n_jobs=64,
+    #     scenario=Scenario.SINGLE_MEAL,
     # )
 
     # plot best 5 params
-    json_file = result_folder / "pid_no_meal_tunning_step5_5min_2000min.json"
+    json_file = result_folder / "pid_single_meal_tunning_step5_5min_2000min.json"
     plot_best_N_params(
         json_file=json_file,
         sample_time=5,

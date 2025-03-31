@@ -78,61 +78,6 @@ def run_sim_pid(k_P, k_I, k_D):
     save_to_csv(t, BG, CHO, insulin, k_P, k_I, k_D)
 """
 
-# testing single meal is not necessary for demo, ignore now
-"""
-def run_sim_simple_pid_single_meal(k_P, k_I, k_D, sample_time=5):
-    single_meal_log_dir = log_dir / "single_meal"
-    single_meal_img_dir = img_dir / "single_meal"
-    single_meal_log_dir.mkdir(exist_ok=True, parents=True)
-    single_meal_img_dir.mkdir(exist_ok=True, parents=True)
-
-    patient_name = "adolescent#003"
-    p = T1DPatient.withName(patient_name)
-
-    t = []
-    CHO = []
-    insulin = []
-    BG = []
-
-    ctrl = SimplePIDController(k_P=k_P, k_I=k_I, k_D=k_D, sampling_time=sample_time)
-    logger.info(f"Testing {patient_name} using Simple PID Controller with single meal")
-
-    while p.t < 2000:
-        carb = 0
-
-        # if p.t == 100:
-        #     carb = 80
-
-        # if p.t == 200:
-        #     carb = 50
-
-        ctrl_obs = CtrlObservation(p.observation.Gsub)
-        ctrl_action = ctrl.policy(
-            observation=ctrl_obs,
-            reward=0,
-            done=False,
-            patient_name=patient_name,
-            meal=carb,
-            time=p.t,
-        )
-        ins = ctrl_action.basal + ctrl_action.bolus
-
-        act = Action(insulin=0, CHO=carb)
-
-        t.append(p.t)
-        CHO.append(act.CHO)
-        insulin.append(act.insulin)
-        BG.append(p.observation.Gsub)
-        p.step(act)
-
-    file_name = save_name_pattern(
-        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark="simple_"
-    )
-    # save_to_csv(single_meal_log_dir, t, BG, CHO, insulin, file_name)
-    plot_and_save(t, BG, CHO, insulin, ctrl.target_BG, file_name)
-    plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
-"""
-
 
 def run_sim_simple_pid_no_meal(
     k_P,
@@ -209,13 +154,23 @@ def run_sim_simple_pid_no_meal(
     return rmse
 
 
-def run_sim_simple_pid_attack(k_P, k_I, k_D, sample_time=5):
-    attack_no_meal_log_dir = log_dir / "attack_no_meal"
-    attack_no_meal_img_dir = img_dir / "attack_no_meal"
-    attack_no_meal_log_dir.mkdir(exist_ok=True, parents=True)
-    attack_no_meal_img_dir.mkdir(exist_ok=True, parents=True)
+def run_sim_simple_pid_single_meal(
+    k_P,
+    k_I,
+    k_D,
+    sample_time=5,
+    basal_rate=0.2,
+    patient_name="adolescent#003",
+    sim_time=2000,
+    save_fig=False,
+    show_fig=False,
+    log=True,
+):
+    single_meal_log_dir = log_dir / "single_meal"
+    single_meal_img_dir = img_dir / "single_meal"
+    single_meal_log_dir.mkdir(exist_ok=True, parents=True)
+    single_meal_img_dir.mkdir(exist_ok=True, parents=True)
 
-    patient_name = "adolescent#003"
     p = T1DPatient.withName(patient_name)
 
     t = []
@@ -223,17 +178,24 @@ def run_sim_simple_pid_attack(k_P, k_I, k_D, sample_time=5):
     insulin = []
     BG = []
 
-    ctrl = SimplePIDController(k_P=k_P, k_I=k_I, k_D=k_D, sampling_time=sample_time)
-    logger.info(f"Testing {patient_name} using Simple PID Controller without meal")
+    ctrl = SimplePIDController(
+        k_P=k_P, k_I=k_I, k_D=k_D, sampling_time=sample_time, basal_rate=basal_rate
+    )
+    if log:
+        logger.info(
+            f"Testing {patient_name} using Simple PID Controller p{k_P}, i{k_I}, d{k_D}, br{basal_rate} with single meal"
+        )
 
-    while p.t < 2000:
+    while p.t < sim_time:
         carb = 0
 
-        ctrl_obs = CtrlObservation(p.observation.Gsub)
         if p.t == 100:
-            ctrl_obs = CtrlObservation(300)
-            logger.info(f"Attack at {p.t} min with {ctrl_obs.CGM} CGM")
+            carb = 80
 
+        # if p.t == 200:
+        #     carb = 50
+
+        ctrl_obs = CtrlObservation(p.observation.Gsub)
         ctrl_action = ctrl.policy(
             observation=ctrl_obs,
             reward=0,
@@ -242,6 +204,7 @@ def run_sim_simple_pid_attack(k_P, k_I, k_D, sample_time=5):
             meal=carb,
             time=p.t,
         )
+
         ins = ctrl_action.basal + ctrl_action.bolus
 
         act = Action(insulin=ins, CHO=carb)
@@ -252,15 +215,109 @@ def run_sim_simple_pid_attack(k_P, k_I, k_D, sample_time=5):
         BG.append(p.observation.Gsub)
         p.step(act)
 
-    print("Simulation done")
+    file_name = save_name_pattern(
+        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark=f"{patient_name}_simple_"
+    )
+    if save_fig:
+        plot_and_save(
+            t,
+            BG,
+            CHO,
+            insulin,
+            ctrl.target_BG,
+            single_meal_img_dir / f"{file_name}.png",
+        )
+    if show_fig:
+        plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
+
+    rmse = get_rmse(BG, ctrl.target_BG)
+    if log:
+        logger.info(f"{patient_name}: {k_P}, {k_I}, {k_D} rmse: {rmse}")
+    return rmse
+
+
+def run_sim_simple_pid_attack(
+    k_P,
+    k_I,
+    k_D,
+    sample_time=5,
+    basal_rate=0.2,
+    patient_name="adolescent#003",
+    sim_time=2000,
+    save_fig=False,
+    show_fig=False,
+    log=True,
+):
+    attack_no_meal_log_dir = log_dir / "attack_no_meal"
+    attack_no_meal_img_dir = img_dir / "attack_no_meal"
+    attack_no_meal_log_dir.mkdir(exist_ok=True, parents=True)
+    attack_no_meal_img_dir.mkdir(exist_ok=True, parents=True)
+
+    p = T1DPatient.withName(patient_name)
+
+    t = []
+    CHO = []
+    insulin = []
+    BG = []
+
+    ctrl = SimplePIDController(
+        k_P=k_P, k_I=k_I, k_D=k_D, sampling_time=sample_time, basal_rate=basal_rate
+    )
+    if log:
+        logger.info(
+            f"Testing {patient_name} using Simple PID Controller p{k_P}, i{k_I}, d{k_D}, br{basal_rate} without meal"
+        )
+
+    while p.t < sim_time:
+        carb = 0
+
+        ctrl_obs = CtrlObservation(p.observation.Gsub)
+        if p.t == 100:
+            ctrl_obs = CtrlObservation(300)
+            if log:
+                logger.info(f"Attack at {p.t} min with {ctrl_obs.CGM} CGM")
+
+        ctrl_action = ctrl.policy(
+            observation=ctrl_obs,
+            reward=0,
+            done=False,
+            patient_name=patient_name,
+            meal=carb,
+            time=p.t,
+        )
+
+        ins = ctrl_action.basal + ctrl_action.bolus
+
+        act = Action(insulin=ins, CHO=carb)
+
+        t.append(p.t)
+        CHO.append(act.CHO)
+        insulin.append(act.insulin)
+        BG.append(p.observation.Gsub)
+        p.step(act)
+
+    if log:
+        logger.info("Simulation done")
 
     file_name = save_name_pattern(
-        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark="simple_"
+        k_P, k_I, k_D, sample_time, ctrl.basal_rate, remark=f"{patient_name}_simple_"
     )
-    plot_and_save(
-        t, BG, CHO, insulin, ctrl.target_BG, attack_no_meal_img_dir / f"{file_name}.png"
-    )
-    plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
+    if save_fig:
+        plot_and_save(
+            t,
+            BG,
+            CHO,
+            insulin,
+            ctrl.target_BG,
+            attack_no_meal_img_dir / f"{file_name}.png",
+        )
+    if show_fig:
+        plot_and_show(t, BG, CHO, insulin, ctrl.target_BG, file_name)
+
+    rmse = get_rmse(BG, ctrl.target_BG)
+    if log:
+        logger.info(f"{patient_name}: {k_P}, {k_I}, {k_D} rmse: {rmse}")
+    return rmse
 
 
 if __name__ == "__main__":
@@ -286,26 +343,53 @@ if __name__ == "__main__":
     # best params by group
     # group: adolescent
     # k_p: 1.0e-03
-    # k_i: 6.2e-07
-    # k_d: 8.0e-02
-    # basal_rate: 7.2e-02
+    # k_i: 6.2e-07 => 1e-6
+    # k_d: 8.0e-02 =>0.1
+    # basal_rate: 7.2e-02 =>0.1
     # group: adult
     # k_p: 1.0e-03
-    # k_i: 9.1e-07
-    # k_d: 3.0e-02
-    # basal_rate: 9.8e-02
+    # k_i: 9.1e-07 =>1e-6
+    # k_d: 3.0e-02 =>0.1
+    # basal_rate: 9.8e-02 =>0.1
     # group: child
-    # k_p: 8.2e-04
-    # k_i: 6.4e-07
-    # k_d: 8.0e-02
-    # basal_rate: 3.1e-02
-    run_sim_simple_pid_no_meal(
-        k_P=1.0e-03,
-        k_I=1e-07,
+    # k_p: 8.2e-04 =>0.001
+    # k_i: 6.4e-07 =>1e-6
+    # k_d: 8.0e-02 =>0.1
+    # basal_rate: 3.1e-02 =>0.03
+
+    # best for patient adolescent#003
+    # run_sim_simple_pid_no_meal(
+    #     k_P=0.001,
+    #     k_I=1e-06,
+    #     k_D=0.1,
+    #     sample_time=5,
+    #     basal_rate=0.05,
+    #     patient_name="adolescent#003",
+    #     save_fig=False,
+    #     show_fig=True,
+    # )
+
+    # run_sim_simple_pid_attack(
+    #     k_P=0.001,
+    #     k_I=1e-06,
+    #     k_D=0.1,
+    #     sample_time=5,
+    #     basal_rate=0.05,
+    #     patient_name="adolescent#003",
+    #     save_fig=False,
+    #     show_fig=True,
+    #     log=True,
+    # )
+
+    # best for patient adolescent#003
+    run_sim_simple_pid_single_meal(
+        k_P=0.001,
+        k_I=1e-06,
         k_D=0.1,
         sample_time=5,
-        basal_rate=0.1,
+        basal_rate=0.05,
         patient_name="adolescent#003",
-        save_fig=True,
+        save_fig=False,
         show_fig=True,
+        log=True,
     )

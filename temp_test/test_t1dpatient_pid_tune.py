@@ -371,13 +371,15 @@ if __name__ == "__main__":
     # )
 
     # plot best 5 params
-    json_file = result_folder / "pid_single_meal_tunning_step5_5min_2000min.json"
-    plot_best_N_params(
-        json_file=json_file,
-        sample_time=5,
-        sim_time=2000,
-        N=1,
-    )
+    # json_file = (
+    #     result_folder / "pid_single_meal_tunning_step5_5min_2000min_refined.json"
+    # )
+    # plot_best_N_params(
+    #     json_file=json_file,
+    #     sample_time=5,
+    #     sim_time=2000,
+    #     N=1,
+    # )
 
     # find_best_params_by_group(
     #     source_json_file_name="pid_no_meal_tunning_step5_5min_2000min_refined.json",
@@ -393,3 +395,8 @@ if __name__ == "__main__":
     #     source_json_file_name="pid_single_meal_tunning_step5_5min_2000min.json",
     #     save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_avg_first1.json",
     # )
+
+    find_best_params_by_group(
+        source_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined.json",
+        save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined_avg_first1.json",
+    )

@@ -10,18 +10,12 @@ from test_t1dpatient_pid import (
     run_sim_simple_pid_single_meal,
     run_sim_simple_pid_attack,
 )
-from test_utils import get_patients
+from test_utils import get_patients, Scenario
 
 # current file path
 file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 result_folder = parent_folder / "results"
-
-
-class Scenario(Enum):
-    NO_MEAL = "no_meal"
-    SINGLE_MEAL = "single_meal"
-    ATTACK = "attack"
 
 
 def test_range_simple_pid_no_meal(
@@ -50,44 +44,6 @@ def test_range_simple_pid_no_meal(
                 f.write(
                     f"{combinations[i][0]},{combinations[i][1]},{combinations[i][2]},{combinations[i][3]},{combinations[i][4]},{results[i]}\n"
                 )
-
-
-def find_good_br_kp():
-    # step 1
-    # k_p = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
-    # k_i = [0]
-    # k_d = [0]
-    # sample_time = [5]
-    # basal_rate = [0, 0.05, 0.1, 0.15, 0.2]
-    # csv_name = "pid_no_meal_tunning_step1"
-
-    # step 2
-    # k_p = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1]
-    # k_i = [0]
-    # k_d = [0]
-    # sample_time = [5]
-    # basal_rate = [0.01, 0.02, 0.05, 0.06, 0.07]
-    # csv_name = "pid_no_meal_tunning_step2"
-    # test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
-
-    # step 3
-    k_p = [1e-6, 1e-5, 1e-4, 1e-3]
-    k_i = [0]
-    k_d = [0]
-    sample_time = [5]
-    basal_rate = [0.05, 0.06, 0.07]
-    csv_name = "pid_no_meal_tunning_step3"
-    test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
-
-
-def find_good_ki_kd():
-    k_p = [1e-4, 1e-5, 1e-6]
-    basal_rate = [0.05, 0.06, 0.07, 0.08]
-    k_i = [1e-10, 5e-9, 1e-7]
-    k_d = [0, 1e-8, 1e-7]
-    sample_time = [5]
-    csv_name = "pid_no_meal_tunning_step4"
-    test_range_simple_pid_no_meal(k_p, k_i, k_d, sample_time, basal_rate, csv_name)
 
 
 def run_single_simulation(
@@ -327,13 +283,7 @@ def find_best_params_by_group(
 
 
 if __name__ == "__main__":
-
-    # find good k_p and br range
-    # find_good_br_kp()
-
-    # find good k_i and k_d range
-    # find_good_ki_kd()
-
+    # test code
     # json_file = json_file = parallel_test_pid_parameters(
     #     k_p_range=[1e-9],
     #     k_i_range=[0],
@@ -343,6 +293,7 @@ if __name__ == "__main__":
     #     scenario=Scenario.SINGLE_MEAL,
     # )
 
+    # run in hyades
     # json_file = parallel_test_pid_parameters(
     #     k_p_range=[1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
     #     k_i_range=[0, 1e-10, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
@@ -381,6 +332,8 @@ if __name__ == "__main__":
     #     N=1,
     # )
 
+    # find best params by group
+
     # find_best_params_by_group(
     #     source_json_file_name="pid_no_meal_tunning_step5_5min_2000min_refined.json",
     #     save_json_file_name="pid_no_meal_tunning_step5_5min_2000min_refined_avg_first1.json",
@@ -396,7 +349,9 @@ if __name__ == "__main__":
     #     save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_avg_first1.json",
     # )
 
-    find_best_params_by_group(
-        source_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined.json",
-        save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined_avg_first1.json",
-    )
+    # find_best_params_by_group(
+    #     source_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined.json",
+    #     save_json_file_name="pid_single_meal_tunning_step5_5min_2000min_refined_avg_first1.json",
+    # )
+
+    pass

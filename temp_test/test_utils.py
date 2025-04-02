@@ -1,8 +1,21 @@
 import matplotlib.pyplot as plt
+from enum import Enum
 import numpy as np
 import pandas as pd
 
 from simglucose.patient.t1dpatient import PATIENT_PARA_FILE
+
+
+class PatientType(Enum):
+    ADOLESCENT = "adolescent"
+    ADULT = "adult"
+    CHILD = "child"
+
+
+class Scenario(Enum):
+    NO_MEAL = "no_meal"
+    SINGLE_MEAL = "single_meal"
+    ATTACK = "attack"
 
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
@@ -79,3 +92,12 @@ def eval_result(BG, target_BG, k_P, k_I, k_D, sample_time):
 def get_patients():
     patient_params = pd.read_csv(PATIENT_PARA_FILE)
     return patient_params.Name.tolist()
+
+
+def get_patient_by_group(patient_type: str):
+    if patient_type == PatientType.ADOLESCENT.value:
+        return [f"adolescent#00{i}" for i in range(1, 10)]
+    elif patient_type == PatientType.ADULT.value:
+        return [f"adult#00{i}" for i in range(1, 10)]
+    elif patient_type == PatientType.CHILD.value:
+        return [f"child#00{i}" for i in range(1, 10)]

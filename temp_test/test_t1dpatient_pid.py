@@ -90,9 +90,10 @@ def run_sim_simple_pid_no_meal(
     save_fig=False,
     show_fig=False,
     log=True,
+    img_folder_name="no_meal",
 ):
-    no_meal_log_dir = log_dir / "no_meal"
-    no_meal_img_dir = img_dir / "no_meal"
+    no_meal_log_dir = log_dir / img_folder_name
+    no_meal_img_dir = img_dir / img_folder_name
     no_meal_log_dir.mkdir(exist_ok=True, parents=True)
     no_meal_img_dir.mkdir(exist_ok=True, parents=True)
 
@@ -165,9 +166,10 @@ def run_sim_simple_pid_single_meal(
     save_fig=False,
     show_fig=False,
     log=True,
+    img_folder_name="single_meal",
 ):
-    single_meal_log_dir = log_dir / "single_meal"
-    single_meal_img_dir = img_dir / "single_meal"
+    single_meal_log_dir = log_dir / img_folder_name
+    single_meal_img_dir = img_dir / img_folder_name
     single_meal_log_dir.mkdir(exist_ok=True, parents=True)
     single_meal_img_dir.mkdir(exist_ok=True, parents=True)
 
@@ -247,9 +249,10 @@ def run_sim_simple_pid_attack(
     save_fig=False,
     show_fig=False,
     log=True,
+    img_folder_name="attack_no_meal",
 ):
-    attack_no_meal_log_dir = log_dir / "attack_no_meal"
-    attack_no_meal_img_dir = img_dir / "attack_no_meal"
+    attack_no_meal_log_dir = log_dir / img_folder_name
+    attack_no_meal_img_dir = img_dir / img_folder_name
     attack_no_meal_log_dir.mkdir(exist_ok=True, parents=True)
     attack_no_meal_img_dir.mkdir(exist_ok=True, parents=True)
 

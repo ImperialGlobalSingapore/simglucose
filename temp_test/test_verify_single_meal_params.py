@@ -23,6 +23,38 @@ def get_good_param(lists: list, criteria: GoodParamCriteria):
         return np.mean(lists)
 
 
+def run_single_meal_params_in_no_meal():
+    # run single meal params in no meal scenario
+    result_folder = Path(__file__).parent / "results"
+    json_file = (
+        result_folder / "pid_single_meal_tunning_step5_5min_2000min_refined.json"
+    )
+
+    with open(json_file, "r") as f:
+        data = json.load(f)
+    for patient, params in data.items():
+        for ps in params:
+            k_p = ps["k_p"]
+            k_i = ps["k_i"]
+            k_d = ps["k_d"]
+            basal_rate = ps["basal_rate"]
+            patient_name = ps["patient_name"]
+            run_sim_simple_pid_no_meal(
+                k_P=k_p,
+                k_I=k_i,
+                k_D=k_d,
+                sample_time=5,
+                basal_rate=basal_rate,
+                patient_name=patient_name,
+                sim_time=2000,
+                save_fig=True,
+                show_fig=False,
+                log=False,
+                img_folder_name=f"no_meal_with_single_meal_params",
+            )
+            break
+
+
 def run_same_single_meal_params_in_scenario(
     criteria: GoodParamCriteria, scenario: Scenario
 ):
@@ -77,9 +109,10 @@ def run_same_single_meal_params_in_scenario(
 
 
 if __name__ == "__main__":
-    run_same_single_meal_params_in_scenario(
-        GoodParamCriteria.MOST_COMMON, Scenario.SINGLE_MEAL
-    )
-    run_same_single_meal_params_in_scenario(
-        GoodParamCriteria.MEAN, Scenario.SINGLE_MEAL
-    )
+    # run_same_single_meal_params_in_scenario(
+    #     GoodParamCriteria.MOST_COMMON, Scenario.SINGLE_MEAL
+    # )
+    # run_same_single_meal_params_in_scenario(
+    #     GoodParamCriteria.MEAN, Scenario.SINGLE_MEAL
+    # )
+    run_single_meal_params_in_no_meal()

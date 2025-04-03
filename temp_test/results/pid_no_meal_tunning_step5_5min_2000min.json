@@ -1,0 +1,1262 @@
+{
+    "adolescent#001": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.09,
+            "patient_name": "adolescent#001",
+            "rmse": 8.580979729600468
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.09,
+            "patient_name": "adolescent#001",
+            "rmse": 8.630472158636962
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.09,
+            "patient_name": "adolescent#001",
+            "rmse": 8.636125194428576
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.09,
+            "patient_name": "adolescent#001",
+            "rmse": 8.636697924482965
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 0.0,
+            "k_d": 0.1,
+            "basal_rate": 0.09,
+            "patient_name": "adolescent#001",
+            "rmse": 8.636761644955248
+        }
+    ],
+    "adolescent#002": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adolescent#002",
+            "rmse": 10.128202876975127
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adolescent#002",
+            "rmse": 10.13277817478803
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adolescent#002",
+            "rmse": 10.133243958021364
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 0.0,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adolescent#002",
+            "rmse": 10.133295804860872
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adolescent#002",
+            "rmse": 10.527992234291183
+        }
+    ],
+    "adolescent#003": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#003",
+            "rmse": 7.439572209309813
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#003",
+            "rmse": 9.541114939657236
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.01,
+            "basal_rate": 0.04,
+            "patient_name": "adolescent#003",
+            "rmse": 9.991978880746021
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#003",
+            "rmse": 9.99889638397336
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#003",
+            "rmse": 10.048569785710011
+        }
+    ],
+    "adolescent#004": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#004",
+            "rmse": 7.091995960536631
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#004",
+            "rmse": 7.094852310389432
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#004",
+            "rmse": 7.095146703157122
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 0.0,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#004",
+            "rmse": 7.095179512628825
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#004",
+            "rmse": 7.995476563686084
+        }
+    ],
+    "adolescent#005": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#005",
+            "rmse": 6.018529291007443
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.01,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#005",
+            "rmse": 7.37368313447905
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.001,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#005",
+            "rmse": 7.378055692302408
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.0001,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#005",
+            "rmse": 7.378994664386727
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-05,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#005",
+            "rmse": 7.379094030178603
+        }
+    ],
+    "adolescent#006": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#006",
+            "rmse": 4.287601144759682
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#006",
+            "rmse": 4.287601146927891
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#006",
+            "rmse": 4.28760116644147
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#006",
+            "rmse": 4.287601361594574
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#006",
+            "rmse": 4.2876033149048975
+        }
+    ],
+    "adolescent#007": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.0,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#007",
+            "rmse": 7.842160547509233
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-08,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#007",
+            "rmse": 7.8421605721391625
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-07,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#007",
+            "rmse": 7.842160793808828
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-06,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#007",
+            "rmse": 7.842163010515513
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-05,
+            "basal_rate": 0.08,
+            "patient_name": "adolescent#007",
+            "rmse": 7.842185178618775
+        }
+    ],
+    "adolescent#008": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#008",
+            "rmse": 7.201227294887821
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#008",
+            "rmse": 7.510803186908517
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#008",
+            "rmse": 7.58007746700735
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#008",
+            "rmse": 7.587556611837129
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#008",
+            "rmse": 7.588310249482765
+        }
+    ],
+    "adolescent#009": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#009",
+            "rmse": 5.70372677171429
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.001,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#009",
+            "rmse": 7.0684019851393405
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.0001,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#009",
+            "rmse": 7.068451430051143
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-05,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#009",
+            "rmse": 7.068460636817863
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-06,
+            "basal_rate": 0.05,
+            "patient_name": "adolescent#009",
+            "rmse": 7.068461600506964
+        }
+    ],
+    "adolescent#010": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.06,
+            "patient_name": "adolescent#010",
+            "rmse": 7.679961958727752
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 0.001,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#010",
+            "rmse": 9.061420291635272
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 0.01,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#010",
+            "rmse": 9.174634099838311
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-08,
+            "k_d": 0.0,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#010",
+            "rmse": 9.400170296295007
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-08,
+            "k_d": 1e-08,
+            "basal_rate": 0.07,
+            "patient_name": "adolescent#010",
+            "rmse": 9.40017045248919
+        }
+    ],
+    "adult#001": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#001",
+            "rmse": 8.955489018488242
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#001",
+            "rmse": 8.955489038633539
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#001",
+            "rmse": 8.955489219941368
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#001",
+            "rmse": 8.955491033023142
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#001",
+            "rmse": 8.955509164179421
+        }
+    ],
+    "adult#002": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#002",
+            "rmse": 10.886573927725099
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#002",
+            "rmse": 10.88657394619767
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#002",
+            "rmse": 10.886574112450663
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#002",
+            "rmse": 10.886575774980358
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#002",
+            "rmse": 10.886592400261767
+        }
+    ],
+    "adult#003": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#003",
+            "rmse": 14.675800627927288
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#003",
+            "rmse": 14.675800663553703
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#003",
+            "rmse": 14.675800984191971
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#003",
+            "rmse": 14.675804190577738
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#003",
+            "rmse": 14.67583625484201
+        }
+    ],
+    "adult#004": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adult#004",
+            "rmse": 7.994458017947724
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adult#004",
+            "rmse": 8.069679421082641
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adult#004",
+            "rmse": 8.078539890787088
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adult#004",
+            "rmse": 8.079440442462916
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 0.0,
+            "k_d": 0.1,
+            "basal_rate": 0.08,
+            "patient_name": "adult#004",
+            "rmse": 8.079540667872678
+        }
+    ],
+    "adult#005": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#005",
+            "rmse": 10.492679981527576
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#005",
+            "rmse": 10.49268000382562
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#005",
+            "rmse": 10.492680204508243
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#005",
+            "rmse": 10.492682211336248
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#005",
+            "rmse": 10.492702279772223
+        }
+    ],
+    "adult#006": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adult#006",
+            "rmse": 21.70435119515176
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.01,
+            "basal_rate": 0.1,
+            "patient_name": "adult#006",
+            "rmse": 22.005445417729458
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.001,
+            "basal_rate": 0.1,
+            "patient_name": "adult#006",
+            "rmse": 22.077219374039462
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0001,
+            "basal_rate": 0.1,
+            "patient_name": "adult#006",
+            "rmse": 22.085201970893515
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#006",
+            "rmse": 22.08600902131849
+        }
+    ],
+    "adult#007": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.001,
+            "basal_rate": 0.1,
+            "patient_name": "adult#007",
+            "rmse": 8.521073482941178
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0001,
+            "basal_rate": 0.1,
+            "patient_name": "adult#007",
+            "rmse": 8.521104859093441
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#007",
+            "rmse": 8.521114246553529
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#007",
+            "rmse": 8.521115249093286
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#007",
+            "rmse": 8.521115349987431
+        }
+    ],
+    "adult#008": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.1,
+            "patient_name": "adult#008",
+            "rmse": 7.91752212942462
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#008",
+            "rmse": 8.717312953370264
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#008",
+            "rmse": 8.717312979935102
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#008",
+            "rmse": 8.717313219018845
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#008",
+            "rmse": 8.717315609866576
+        }
+    ],
+    "adult#009": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#009",
+            "rmse": 10.00772448198093
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#009",
+            "rmse": 10.007724501975035
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#009",
+            "rmse": 10.00772468192249
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#009",
+            "rmse": 10.007726481402804
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#009",
+            "rmse": 10.007744476783618
+        }
+    ],
+    "adult#010": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.0,
+            "basal_rate": 0.1,
+            "patient_name": "adult#010",
+            "rmse": 11.303008679052258
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-08,
+            "basal_rate": 0.1,
+            "patient_name": "adult#010",
+            "rmse": 11.303008694394931
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-07,
+            "basal_rate": 0.1,
+            "patient_name": "adult#010",
+            "rmse": 11.303008832478742
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-06,
+            "basal_rate": 0.1,
+            "patient_name": "adult#010",
+            "rmse": 11.303010213328882
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 1e-05,
+            "basal_rate": 0.1,
+            "patient_name": "adult#010",
+            "rmse": 11.303024023002639
+        }
+    ],
+    "child#001": [
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 0.0,
+            "basal_rate": 0.03,
+            "patient_name": "child#001",
+            "rmse": 16.572925091698075
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-08,
+            "basal_rate": 0.03,
+            "patient_name": "child#001",
+            "rmse": 16.5729252323379
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-07,
+            "basal_rate": 0.03,
+            "patient_name": "child#001",
+            "rmse": 16.572926498105236
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-06,
+            "basal_rate": 0.03,
+            "patient_name": "child#001",
+            "rmse": 16.57293915662481
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-05,
+            "basal_rate": 0.03,
+            "patient_name": "child#001",
+            "rmse": 16.57306582650694
+        }
+    ],
+    "child#002": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#002",
+            "rmse": 6.019731241387921
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#002",
+            "rmse": 7.355451857345654
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#002",
+            "rmse": 7.681936172611061
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#002",
+            "rmse": 7.717886924188841
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#002",
+            "rmse": 7.7215168474294495
+        }
+    ],
+    "child#003": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#003",
+            "rmse": 4.032962137533532
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.01,
+            "basal_rate": 0.02,
+            "patient_name": "child#003",
+            "rmse": 5.528705972990291
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#003",
+            "rmse": 5.716248394474137
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.01,
+            "basal_rate": 0.02,
+            "patient_name": "child#003",
+            "rmse": 5.864072728163753
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.01,
+            "basal_rate": 0.02,
+            "patient_name": "child#003",
+            "rmse": 5.900478856889545
+        }
+    ],
+    "child#004": [
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 0.0,
+            "basal_rate": 0.04,
+            "patient_name": "child#004",
+            "rmse": 7.6180105866295325
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-08,
+            "basal_rate": 0.04,
+            "patient_name": "child#004",
+            "rmse": 7.618010678405206
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-07,
+            "basal_rate": 0.04,
+            "patient_name": "child#004",
+            "rmse": 7.618011504397053
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-06,
+            "basal_rate": 0.04,
+            "patient_name": "child#004",
+            "rmse": 7.618019765261
+        },
+        {
+            "k_p": 0.0001,
+            "k_i": 1e-07,
+            "k_d": 1e-05,
+            "basal_rate": 0.04,
+            "patient_name": "child#004",
+            "rmse": 7.618102468521233
+        }
+    ],
+    "child#005": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#005",
+            "rmse": 4.608003121135221
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#005",
+            "rmse": 5.9876059319523405
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#005",
+            "rmse": 6.2945896115723885
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#005",
+            "rmse": 6.328065733021381
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#005",
+            "rmse": 6.331442541346268
+        }
+    ],
+    "child#006": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#006",
+            "rmse": 5.676106606879619
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#006",
+            "rmse": 7.417123956944577
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#006",
+            "rmse": 7.80110810737687
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#006",
+            "rmse": 7.8429273115779194
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#006",
+            "rmse": 7.847145154696531
+        }
+    ],
+    "child#007": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#007",
+            "rmse": 3.515204187862561
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#007",
+            "rmse": 4.0669042039899965
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#007",
+            "rmse": 4.195332229163287
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#007",
+            "rmse": 4.209380485004928
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.04,
+            "patient_name": "child#007",
+            "rmse": 4.210797985251018
+        }
+    ],
+    "child#008": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#008",
+            "rmse": 8.887863922519353
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#008",
+            "rmse": 9.11261105266267
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#008",
+            "rmse": 9.137717851983696
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#008",
+            "rmse": 9.140256511551785
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 0.0,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#008",
+            "rmse": 9.140538900784103
+        }
+    ],
+    "child#009": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#009",
+            "rmse": 13.704514140021764
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#009",
+            "rmse": 14.207130803398469
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.01,
+            "basal_rate": 0.02,
+            "patient_name": "child#009",
+            "rmse": 14.226438657901982
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#009",
+            "rmse": 14.294558320708248
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.02,
+            "patient_name": "child#009",
+            "rmse": 14.303353096832081
+        }
+    ],
+    "child#010": [
+        {
+            "k_p": 0.001,
+            "k_i": 1e-06,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#010",
+            "rmse": 4.628736254424128
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-07,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#010",
+            "rmse": 6.23588602475018
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-08,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#010",
+            "rmse": 6.564785208639394
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-09,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#010",
+            "rmse": 6.600290223562129
+        },
+        {
+            "k_p": 0.001,
+            "k_i": 1e-10,
+            "k_d": 0.1,
+            "basal_rate": 0.03,
+            "patient_name": "child#010",
+            "rmse": 6.603868059564001
+        }
+    ]
+}

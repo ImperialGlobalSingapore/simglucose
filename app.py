@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from simglucose.controller.basal_bolus_ctrller import BBController
-from simglucose.controller.pid_ctrller import PIDController
+from simglucose.controller.simple_pid_ctrller import SimplePIDController as PIDController
 from simglucose.patient.t1dpatient import T1DPatient
 from simglucose.controller.base import Action, Controller
 

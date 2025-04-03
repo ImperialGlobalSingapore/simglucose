@@ -1,7 +1,7 @@
 from collections import namedtuple
 from uuid import uuid4
 import json
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 import copy
 import logging
 
@@ -24,15 +24,20 @@ PatientObservation = namedtuple("observation", ["Gsub"])
 controller_map = {"basal_bolus": BBController, "pid": PIDController}
 
 # Pydantic models for request/response validation
+class InitRequest(BaseModel):
+    patient: str = "adolescent#003"
+    controller_algorithm: str = "basal_bolus"
+    controller_kwargs: Dict[str, Any] = Field(default_factory=dict)
+
 class InitResponse(BaseModel):
     initial_glucose: float
     patient_id: str
+    controller_algorithm: str
 
 class StepRequest(BaseModel):
     glucose_reading: float
     carbs: int = 0
     delta_time: int = 1
-    controller_algorithm: str = "basal_bolus"
     pump: str = "DefaultPump"
     attack_glucose: Optional[float] = None  # Added: fake glucose data for attack scenario
 
@@ -46,8 +51,8 @@ class StepResponse(BaseModel):
 # Create FastAPI app
 app = FastAPI(title="Glucose Simulation API")
 
-# Store patients in memory (consider a database for production)
-patient_map: Dict[str, T1DPatient] = {}
+# Store patients and controllers in memory (consider a database for production)
+patient_map: Dict[str, Dict[str, Any]] = {}
 
 # Define logger
 logger = logging.getLogger(__name__)
@@ -92,19 +97,31 @@ class ModifiedT1DPatient:
         return self._observation
 
 @app.post("/init", response_model=InitResponse)
-def init(patient: str = "adolescent#003"):
-    """Initialize a new patient simulation"""
-    t1d_patient = T1DPatient.withName(patient, seed=42)
+def init(request: InitRequest):
+    """Initialize a new patient simulation with controller"""
+    t1d_patient = T1DPatient.withName(request.patient, seed=42)
+    
+    # Check if controller algorithm is supported
+    if request.controller_algorithm not in controller_map:
+        raise HTTPException(status_code=400, detail="Unsupported controller algorithm")
+    
+    # Initialize controller with provided kwargs
+    controller = controller_map[request.controller_algorithm](**request.controller_kwargs)
     
     # Generate a unique ID for this patient
     patient_id = str(uuid4())
     
-    # Store the patient in our map
-    patient_map[patient_id] = t1d_patient
+    # Store the patient and controller in our map
+    patient_map[patient_id] = {
+        "patient": t1d_patient, 
+        "controller": controller,
+        "controller_algorithm": request.controller_algorithm
+    }
     
     return {
         "initial_glucose": t1d_patient.observation.Gsub,
-        "patient_id": patient_id
+        "patient_id": patient_id,
+        "controller_algorithm": request.controller_algorithm
     }
 
 @app.post("/step/{patient_id}", response_model=StepResponse)
@@ -114,13 +131,10 @@ def step(patient_id: str, request: StepRequest):
     if patient_id not in patient_map:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    patient = patient_map[patient_id]
-    
-    # Get controller based on algorithm
-    if request.controller_algorithm not in controller_map:
-        raise HTTPException(status_code=400, detail="Unsupported controller algorithm")
-    
-    ctrl = controller_map[request.controller_algorithm]()
+    # Retrieve patient and controller
+    patient_data = patient_map[patient_id]
+    patient = patient_data["patient"]
+    ctrl = patient_data["controller"]
     
     # Determine if this is an attack scenario
     is_attack = request.attack_glucose is not None
@@ -128,16 +142,17 @@ def step(patient_id: str, request: StepRequest):
     # Create controller observation - if attack scenario, use fake glucose data
     glucose_for_controller = request.attack_glucose if is_attack else request.glucose_reading
     ctrl_obs = CtrlObservation(glucose_for_controller)
-    
+    print("observation", ctrl_obs)
     # Get controller action
     ctrl_action = ctrl.policy(
         observation=ctrl_obs,
         reward=0,
         done=False,
         patient_name=patient.name,
-        meal=request.carbs
+        meal=request.carbs,
+        time=patient.t
     )
-    
+    print("action", ctrl_action)
     # Calculate insulin
     insulin = ctrl_action.basal + ctrl_action.bolus
     
@@ -167,9 +182,16 @@ def step(patient_id: str, request: StepRequest):
 @app.get("/patients")
 def list_patients():
     """List all active patient simulations"""
+    patient_info = {}
+    for patient_id, data in patient_map.items():
+        patient_info[patient_id] = {
+            "controller_algorithm": data["controller_algorithm"],
+            "patient_name": data["patient"].name
+        }
+    
     return {
         "patient_count": len(patient_map),
-        "patients": list(patient_map.keys())
+        "patients": patient_info
     }
 
 @app.delete("/patients/{patient_id}")
@@ -195,10 +217,10 @@ def attack_demo(patient_id: str, request: StepRequest):
     if request.attack_glucose is None:
         raise HTTPException(status_code=400, detail="Attack glucose value is required")
     
-    patient = patient_map[patient_id]
-
-    # Use PIDController instead of BBController
-    ctrl = PIDController()
+    # Retrieve patient and controller
+    patient_data = patient_map[patient_id]
+    patient = patient_data["patient"]
+    ctrl = patient_data["controller"]
     
     # Create controller observation with fake glucose data
     ctrl_obs = CtrlObservation(request.attack_glucose)
@@ -209,7 +231,8 @@ def attack_demo(patient_id: str, request: StepRequest):
         reward=0,
         done=False,
         patient_name=patient.name,
-        meal=request.carbs
+        meal=request.carbs,
+        time=request.delta_time
     )
 
     # Calculate insulin dose
@@ -233,7 +256,7 @@ def attack_demo(patient_id: str, request: StepRequest):
     }
 
 @app.post("/attack_demo_with_controller/{patient_id}", response_model=StepResponse)
-def attack_demo_with_controller(patient_id: str, request: StepRequest):
+def attack_demo_with_controller(patient_id: str, request: StepRequest, override_controller: bool = False):
     """
     Demonstrate attack scenario: use specified controller algorithm to calculate insulin dose
     based on fake glucose data, but apply this dose to real glucose data
@@ -246,15 +269,26 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
     if request.attack_glucose is None:
         raise HTTPException(status_code=400, detail="Attack glucose value is required")
     
-    # Get controller based on algorithm
-    if request.controller_algorithm not in controller_map:
-        raise HTTPException(status_code=400, detail="Unsupported controller algorithm")
-
-    patient = patient_map[patient_id]
+    # Retrieve patient data
+    patient_data = patient_map[patient_id]
+    patient = patient_data["patient"]
     
-    # Use specified controller
-    ctrl = controller_map[request.controller_algorithm]()
-    logger.info(f"Created new {request.controller_algorithm} controller for patient {patient_id}")
+    # Determine controller to use (stored or specific override)
+    if override_controller:
+        # Check if controller algorithm is supported
+        if request.controller_algorithm not in controller_map:
+            raise HTTPException(status_code=400, detail="Unsupported controller algorithm")
+        
+        # Use specified controller for this request only
+        ctrl = controller_map[request.controller_algorithm]()
+        controller_used = request.controller_algorithm
+        logger.info(f"Created override {controller_used} controller for patient {patient_id}")
+    else:
+        # Use the stored controller
+        ctrl = patient_data["controller"]
+        controller_used = patient_data["controller_algorithm"]
+        logger.info(f"Using stored {controller_used} controller for patient {patient_id}")
+        
     logger.info(f"Attack scenario - Real glucose: {request.glucose_reading}, Attack glucose: {request.attack_glucose}, Carbs: {request.carbs}")
     
     # Create controller observation with fake glucose data
@@ -290,7 +324,7 @@ def attack_demo_with_controller(patient_id: str, request: StepRequest):
         "attack_scenario": True,
         "real_glucose": request.glucose_reading,
         "attack_glucose": request.attack_glucose,
-        "controller_used": request.controller_algorithm,
+        "controller_used": controller_used,
         "basal": ctrl_action.basal,
         "bolus": ctrl_action.bolus
     }
@@ -309,16 +343,13 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
     # Check if this is actually an attack (attack_glucose != glucose_reading)
     is_attack = abs(request.attack_glucose - request.glucose_reading) > 1.0  # Allow small differences due to floating point
     
-    original_patient = patient_map[patient_id]
+    # Retrieve patient data
+    patient_data = patient_map[patient_id]
+    original_patient = patient_data["patient"]
+    ctrl = patient_data["controller"]
     
     # Create modified patient model
     modified_patient = ModifiedT1DPatient(original_patient)
-    
-    # Use specified controller
-    if request.controller_algorithm not in controller_map:
-        raise HTTPException(status_code=400, detail="Unsupported controller algorithm")
-    
-    ctrl = controller_map[request.controller_algorithm]()
     
     # Calculate insulin dose using attack glucose value or real glucose value
     glucose_for_controller = request.attack_glucose if is_attack else request.glucose_reading
@@ -330,7 +361,8 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
         reward=0,
         done=False,
         patient_name=modified_patient.name,
-        meal=request.carbs
+        meal=request.carbs,
+        time=request.delta_time
     )
     
     # Calculate insulin dose
@@ -353,7 +385,7 @@ def enhanced_attack_demo(patient_id: str, request: StepRequest):
         "glucose": glucose,
         "insulin": insulin,
         "real_glucose": request.glucose_reading,
-        "controller_used": request.controller_algorithm,
+        "controller_used": patient_data["controller_algorithm"],
         "glucose_change": glucose - initial_glucose
     }
     

@@ -1,5 +1,6 @@
 from transformers.models.qwen2.modeling_qwen2 import *
 from transformers import AutoModel
+from ts_utilis import GenerationMixin
 
 _CHECKPOINT_FOR_DOC = "meta-qwen2/Qwen2-2-7b-hf"
 _CONFIG_FOR_DOC = "Qwen2Config"
@@ -16,7 +17,7 @@ class Qwen2TSModel(Qwen2Model):
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
         self.layers = nn.ModuleList(
             [Qwen2DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
-        )
+        )   
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.rotary_emb = Qwen2RotaryEmbedding(config=config)
         self.gradient_checkpointing = False
@@ -67,20 +68,24 @@ class Qwen2TSModel(Qwen2Model):
             inputs_embeds = self.embed_tokens(input_ids)
 
         # embed chronos time-series tokens
-        ts_embeds = self.ts_embeddings(
-            input_ids=timeseries_input_ids, attention_mask=timeseries_attention_mask
-        ).last_hidden_state #.encode(timeseries_input_ids, timeseries_attention_mask)
+        if timeseries_input_ids is not None:
+            ts_embeds = self.ts_embeddings(
+                input_ids=timeseries_input_ids, attention_mask=timeseries_attention_mask
+            ).last_hidden_state #.encode(timeseries_input_ids, timeseries_attention_mask)
 
-        # now project embeddings to match dimensionality of input_embeds
-        ts_embeds_projected = self.ts_projection(ts_embeds)
+            # now project embeddings to match dimensionality of input_embeds
+            ts_embeds_projected = self.ts_projection(ts_embeds)
+            # Concatenate along sequence dimension (dim=1)
+            # print(input_ids.shape)
+            # print(timeseries_input_ids.shape)
+            # print(attention_mask.shape)
+            # print(timeseries_attention_mask.shape)
+            hidden_states = torch.cat([ts_embeds_projected, inputs_embeds], dim=1)
+            if attention_mask is not None and timeseries_attention_mask is not None:
+                attention_mask = torch.cat([timeseries_attention_mask, attention_mask], dim=1)
+        else: 
+            hidden_states = inputs_embeds
 
-        # Concatenate along sequence dimension (dim=1)
-        # print(input_ids.shape)
-        # print(timeseries_input_ids.shape)
-        # print(attention_mask.shape)
-        # print(timeseries_attention_mask.shape)
-        hidden_states = torch.cat([ts_embeds_projected, inputs_embeds], dim=1)
-        attention_mask = torch.cat([timeseries_attention_mask, attention_mask], dim=1)
         if use_cache and past_key_values is None:
             past_key_values = DynamicCache()
 
@@ -269,14 +274,22 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
         hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         # logits_to_keep = input_ids.shape[1]
-
-        n = hidden_states.shape[1] - (logits_to_keep if logits_to_keep > 0 else labels.shape[1])
-        # Create tensor of -100s with shape [batch_size, n]
-        ignore_tokens = torch.full((labels.shape[0], n), -100, dtype=labels.dtype, device=labels.device)
-        # Concatenate the -100s with the labels along the sequence dimension (dim=1)
-        old_label_length = labels.shape[1]
-        labels = torch.cat([ignore_tokens, labels], dim=1)
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
+
+        if labels is not None:
+            n = hidden_states.shape[1] - (logits_to_keep if logits_to_keep > 0 else labels.shape[1])
+            # Create tensor of -100s with shape [batch_size, n]
+            ignore_tokens = torch.full((labels.shape[0], n), -100, dtype=labels.dtype, device=labels.device)
+            # Concatenate the -100s with the labels along the sequence dimension (dim=1)
+            old_label_length = labels.shape[1]
+            labels = torch.cat([ignore_tokens, labels], dim=1)
+        
+        else:
+            # When labels is None (during inference)
+            n = 0
+            old_label_length = 0
+            
+
         logits = self.lm_head(hidden_states[:, slice_indices, :])
         # print(n)
         # print(hidden_states.shape)

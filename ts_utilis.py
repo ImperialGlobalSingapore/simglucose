@@ -2342,8 +2342,8 @@ class GenerationMixin:
             # 11. expand input_ids with `num_return_sequences` additional sequences per batch
             input_ids, model_kwargs = self._expand_inputs_for_generation(
                 input_ids=input_ids, # @Viktor pass ts ids here
-                timeseries_input_ids=model_kwargs.get("timeseries_input_ids", None),
-                timeseries_attention_mask=model_kwargs.get("timeseries_attention_mask", None),
+                timeseries_input_ids=model_kwargs.pop("timeseries_input_ids"),
+                timeseries_attention_mask=model_kwargs.pop("timeseries_attention_mask"),
                 expand_size=generation_config.num_return_sequences,
                 is_encoder_decoder=self.config.is_encoder_decoder,
                 **model_kwargs,

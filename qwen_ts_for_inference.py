@@ -164,7 +164,7 @@ class Qwen2TSModel(Qwen2Model):
         return output if return_dict else output.to_tuple()
 
 
-class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
+class Qwen2ForCausalLM(GenerationMixin, Qwen2PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
     _tp_plan = {"lm_head": "colwise_rep"}
     _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}

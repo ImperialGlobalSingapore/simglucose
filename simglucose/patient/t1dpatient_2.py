@@ -1,3 +1,4 @@
+from simglucose.controller.oref_zero import ORefZeroController
 from simglucose.patient.base import Patient
 import numpy as np
 from scipy.integrate import ode
@@ -10,8 +11,7 @@ from simglucose.controller.pid_ctrller import PIDController
 from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
-# Controller selection: 'pid' or 'bb' (basal-bolus)
-CONTROLLER_TYPE = 'pid'  # Change this to 'bb' to use BBController
+
 
 Action = namedtuple("patient_action", ["CHO", "insulin"])
 Observation = namedtuple("observation", ["Gsub"])
@@ -293,18 +293,18 @@ class T1DPatient(Patient):
 CtrlObservation = namedtuple('CtrlObservation', ["CGM"])
 
 if __name__ == "__main__":
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     # create console handler and set level to debug
     ch = logging.StreamHandler()
     # ch.setLevel(logging.DEBUG)
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(logging.INFO)
     # create formatter
     formatter = logging.Formatter("%(name)s: %(levelname)s: %(message)s")
     # add formatter to ch
     ch.setFormatter(formatter)
     # add ch to logger
     logger.addHandler(ch)
-    patient_name = "adolescent#003"
+    patient_name = "adolescent#005"
     p = T1DPatient.withName(patient_name)
     basal = p._params.u2ss * p._params.BW / 6000  # U/min
     t = []
@@ -314,19 +314,23 @@ if __name__ == "__main__":
     copy_state = 50
     new_state = None
 
+    # Controller selection: 'pid' or 'bb' (basal-bolus)
+    CONTROLLER_TYPE = 'oref0'  # Change this to 'bb' to use BBController
+    
     # Select controller based on CONTROLLER_TYPE
     if CONTROLLER_TYPE.lower() == 'pid':
         ctrl = PIDController()
         logger.info("Using PID Controller")
-    else:
+    elif CONTROLLER_TYPE.lower() == 'bb':
         ctrl = BBController()
         logger.info("Using Basal-Bolus Controller")
-    
+    elif CONTROLLER_TYPE.lower() == 'oref0':
+        ctrl = ORefZeroController()
+        logger.info("Using Oref0")
     current_sim_time = datetime.now()  # Starting time for simulation
-    while p.t < 10000:
+    while p.t < 288:
         ins = basal
         carb = 0
-        
         if p.t == copy_state:
             new_state = p.state
         
@@ -343,6 +347,9 @@ if __name__ == "__main__":
             carb = 80
             
         if p.t == 200:
+            carb = 50
+        
+        if p.t == 240:
             carb = 50
         # ins = 80.0 / 6.0 + basal2
         # if p.t == 150:
@@ -378,7 +385,7 @@ if __name__ == "__main__":
     CHO2 = []
     insulin2 = []
     BG2 = []
-    while p2.t < 10000:
+    while p2.t < 5:
         # ins = basal2
         
         carb = 0
@@ -415,4 +422,4 @@ if __name__ == "__main__":
     ax[1].plot(t2, CHO2)
     ax[2].plot(t, insulin)
     ax[2].plot(t2, insulin2)
-    plt.show()
+    plt.savefig('result.png')

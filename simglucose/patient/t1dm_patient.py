@@ -27,27 +27,26 @@ class T1DMPatient(Patient):
         self,
         params,
         init_state=None,
-        random_init_bg=False,
-        seed=None,
-        manual_init_bg=False,
         init_bg=None,
         t0=0,
     ):
         """
-        T1DPatient constructor.
+        T1DMPatient constructor.
         Inputs:
-            - params: a pandas sequence
+            - params: patient parameters loaded from JSON files in patient_jsons/ directory.
+              Contains physiological constants (BW, Gb, Ib, etc.), model parameters (kabs, kmax, etc.),
+              and initial conditions (x0, xeq). See patient_jsons/*.json for complete parameter structure.
             - init_state: customized initial state.
               If not specified, load the default initial state in
-              params.iloc[2:15]
+              params.x0
+            - init_bg: customized initial blood glucose.
+              If not specified, will use self._params.Gb * self._params.Vg
+              where Gb is plasma glucose concentration (mg/dL) and Vg is glucose distribution volume (dL/kg)
             - t0: simulation start time, it is 0 by default
         """
         self._params = params
         self._init_state = init_state
-        self.random_init_bg = random_init_bg
-        self.manual_init_bg = manual_init_bg
-        self.init_bg = init_bg
-        self._seed = seed
+        self._init_bg = init_bg
         self.t0 = t0
         self.reset()
 
@@ -122,15 +121,6 @@ class T1DMPatient(Patient):
             to_eat = 0
         return to_eat
 
-    @property
-    def seed(self):
-        return self._seed
-
-    @seed.setter
-    def seed(self, seed):
-        self._seed = seed
-        self.reset()
-
     def reset(self):
         """
         Reset the patient state to default intial state
@@ -140,133 +130,103 @@ class T1DMPatient(Patient):
         else:
             self.init_state = self._init_state
 
-        if self.random_init_bg and self.manual_init_bg:
-            raise ValueError("random_init_bg and manual_init_bg cannot be both True.")
-        if self.random_init_bg:
-            self.random_state = np.random.RandomState(self.seed)
-            # Only randomize glucose related states, x4, x5, and x13
-            mean = [
-                1.0 * self.init_state[3],
-                1.0 * self.init_state[4],
-                1.0 * self.init_state[12],
-            ]
-            cov = np.diag(
-                [
-                    0.1 * self.init_state[3],
-                    0.1 * self.init_state[4],
-                    0.1 * self.init_state[12],
-                ]
-            )
-            bg_init = self.random_state.multivariate_normal(mean, cov)
-            self.init_state[3] = 1.0 * bg_init[0]
-            self.init_state[4] = 1.0 * bg_init[1]
-            self.init_state[12] = 1.0 * bg_init[2]
-
-            self._params.x0[3] = self.init_state[3]
-            self._params.x0[4] = self.init_state[4]
-            self._params.x0[12] = self.init_state[12]
-
-        if self.manual_init_bg:
-            # follow run_simulation.m post processing code
-            if self.init_bg is None:
-                # (matlab)
-                # Quest.fastingBG = struttura.Gb;
-                # sc.BGinit = Quest.fastingBG;
-                self.init_bg = self._params.Gb * self._params.Vg
-                self._params.x0[12] = self.init_state[12] = self.init_bg
+        # follow run_simulation.m post processing code
+        if self._init_bg is None:
+            # (matlab)
+            # Quest.fastingBG = struttura.Gb;
+            # sc.BGinit = Quest.fastingBG;
+            self._init_bg = self._params.Gb * self._params.Vg
+            self._params.x0[12] = self.init_state[12] = self._init_bg
+        else:
+            # (matlab) Gpop = sc.BGinit * struttura.Vg; Gpop -> self.init_state[12]
+            if self._init_bg < self._params.Gb:
+                fGp = np.log(self._init_bg) ** self._params.r1 - self._params.r2
+                risk = 10 * fGp**2
             else:
-                # (matlab) Gpop = sc.BGinit * struttura.Vg; Gpop -> self.init_state[12]
-                if self.init_bg < self._params.Gb:
-                    fGp = np.log(self.init_bg) ** self._params.r1 - self._params.r2
-                    risk = 10 * fGp**2
-                else:
-                    risk = 0
+                risk = 0
 
-                if self.init_bg * self._params.Vg > self._params.ke2:
-                    Et = self._params.ke1 * (
-                        self.init_bg * self._params.Vg - self._params.ke2
-                    )
-                else:
-                    Et = 0
-
-                Gpop = self.init_bg * self._params.Vg
-                GGta = -self._params.k2 - (
-                    self._params.Vmx
-                    * self._params.k2
-                    / self._params.kp3
-                    * (1 + self._params.r3 * risk)
+            if self._init_bg * self._params.Vg > self._params.ke2:
+                Et = self._params.ke1 * (
+                    self._init_bg * self._params.Vg - self._params.ke2
                 )
-                GGtb = (
-                    self._params.k1 * Gpop
-                    - self._params.k2 * self._params.Km0
-                    - self._params.Vm0
-                    + self._params.Vmx * (1 + self._params.r3 * risk) * self._params.Ib
+            else:
+                Et = 0
+
+            Gpop = self._init_bg * self._params.Vg
+            GGta = -self._params.k2 - (
+                self._params.Vmx
+                * self._params.k2
+                / self._params.kp3
+                * (1 + self._params.r3 * risk)
+            )
+            GGtb = (
+                self._params.k1 * Gpop
+                - self._params.k2 * self._params.Km0
+                - self._params.Vm0
+                + self._params.Vmx * (1 + self._params.r3 * risk) * self._params.Ib
+                + (
+                    (
+                        self._params.Vmx
+                        * Gpop
+                        * (1 + self._params.r3 * risk)
+                        * (self._params.k1 + self._params.kp2)
+                    )
+                    - (
+                        self._params.Vmx
+                        * self._params.kp1
+                        * (1 + self._params.r3 * risk)
+                    )
                     + (
-                        (
-                            self._params.Vmx
-                            * Gpop
-                            * (1 + self._params.r3 * risk)
-                            * (self._params.k1 + self._params.kp2)
-                        )
-                        - (
-                            self._params.Vmx
-                            * self._params.kp1
-                            * (1 + self._params.r3 * risk)
-                        )
-                        + (
-                            self._params.Vmx
-                            * (self._params.Fsnc + Et)
-                            * (1 + self._params.r3 * risk)
-                        )
+                        self._params.Vmx
+                        * (self._params.Fsnc + Et)
+                        * (1 + self._params.r3 * risk)
                     )
-                    / self._params.kp3
                 )
-                GGtc = self._params.k1 * Gpop * self._params.Km0
-                Gtop = (-GGtb - np.sqrt(GGtb**2 - 4 * GGta * GGtc)) / (2 * GGta)
-                Idop = max(
-                    0,
-                    (
-                        -(self._params.k1 + self._params.kp2) * Gpop
-                        + self._params.k2 * Gtop
-                        + self._params.kp1
-                        - (self._params.Fsnc + Et)
-                    )
-                    / self._params.kp3,
+                / self._params.kp3
+            )
+            GGtc = self._params.k1 * Gpop * self._params.Km0
+            Gtop = (-GGtb - np.sqrt(GGtb**2 - 4 * GGta * GGtc)) / (2 * GGta)
+            Idop = max(
+                0,
+                (
+                    -(self._params.k1 + self._params.kp2) * Gpop
+                    + self._params.k2 * Gtop
+                    + self._params.kp1
+                    - (self._params.Fsnc + Et)
                 )
-                Ipop = Idop * self._params.Vi
-                ILop = self._params.m2 * Ipop / (self._params.m1 + self._params.m30)
-                Xop = Ipop / self._params.Vi - self._params.Ib
-                isc1op = max(
-                    0,
-                    (
-                        (self._params.m2 + self._params.m4) * Ipop
-                        - self._params.m1 * ILop
-                    )
-                    / (self._params.ka1 + self._params.kd),
-                )
-                isc2op = self._params.kd * isc1op / self._params.ka2
-                u2op = (self._params.ka1 + self._params.kd) * isc1op
-                self._params.x0[0] = self.init_state[0] = 0
-                self._params.x0[1] = self.init_state[1] = 0
-                self._params.x0[2] = self.init_state[2] = 0
-                self._params.x0[3] = self.init_state[3] = Gpop
-                self._params.x0[4] = self.init_state[4] = Gtop
-                self._params.x0[5] = self.init_state[5] = Ipop
-                self._params.x0[6] = self.init_state[6] = Xop
-                self._params.x0[7] = self.init_state[7] = Idop
-                self._params.x0[8] = self.init_state[8] = Idop
-                self._params.x0[9] = self.init_state[9] = ILop
-                self._params.x0[10] = self.init_state[10] = isc1op
-                self._params.x0[11] = self.init_state[11] = isc2op
-                self._params.x0[12] = self.init_state[12] = Gpop
-                self._params.x0[13] = self.init_state[13] = self._params.Gnb
-                self._params.x0[14] = self.init_state[14] = 0
-                self._params.x0[15] = self.init_state[15] = (
-                    self._params.k01g * self._params.Gnb
-                )
-                self._params.x0[16] = self.init_state[16] = 0
-                self._params.x0[17] = self.init_state[17] = 0
-                self._params.x0[12] = self.init_state[12]
+                / self._params.kp3,
+            )
+            Ipop = Idop * self._params.Vi
+            ILop = self._params.m2 * Ipop / (self._params.m1 + self._params.m30)
+            Xop = Ipop / self._params.Vi - self._params.Ib
+            isc1op = max(
+                0,
+                ((self._params.m2 + self._params.m4) * Ipop - self._params.m1 * ILop)
+                / (self._params.ka1 + self._params.kd),
+            )
+            isc2op = self._params.kd * isc1op / self._params.ka2
+            u2op = (self._params.ka1 + self._params.kd) * isc1op
+            self._params.x0[0] = self.init_state[0] = 0
+            self._params.x0[1] = self.init_state[1] = 0
+            self._params.x0[2] = self.init_state[2] = 0
+            self._params.x0[3] = self.init_state[3] = Gpop
+            self._params.x0[4] = self.init_state[4] = Gtop
+            self._params.x0[5] = self.init_state[5] = Ipop
+            self._params.x0[6] = self.init_state[6] = Xop
+            self._params.x0[7] = self.init_state[7] = Idop
+            self._params.x0[8] = self.init_state[8] = Idop
+            self._params.x0[9] = self.init_state[9] = ILop
+            self._params.x0[10] = self.init_state[10] = isc1op
+            self._params.x0[11] = self.init_state[11] = isc2op
+            self._params.x0[12] = self.init_state[12] = Gpop
+            self._params.x0[13] = self.init_state[13] = self._params.Gnb
+            self._params.x0[14] = self.init_state[14] = 0
+            self._params.x0[15] = self.init_state[15] = (
+                self._params.k01g * self._params.Gnb
+            )
+            self._params.x0[16] = self.init_state[16] = 0
+            self._params.x0[17] = self.init_state[17] = 0
+            self._params.x0[12] = self.init_state[12]
 
         self._last_Qsto = self.init_state[0] + self.init_state[1]
         self._last_foodtaken = 0

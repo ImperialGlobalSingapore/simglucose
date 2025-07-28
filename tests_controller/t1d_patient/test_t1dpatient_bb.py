@@ -4,7 +4,10 @@ from simglucose.controller.basal_bolus_ctrller import BBController
 
 from datetime import datetime, timedelta
 import logging
+import sys
+from pathlib import Path
 
+sys.path.append(str(Path(__file__).parent.parent))
 from test_utils import plot_and_show
 
 logger = logging.getLogger(__name__)

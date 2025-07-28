@@ -9,6 +9,10 @@ from simglucose.patient.t1dpatient import T1DPatient, Action, PATIENT_PARA_FILE
 from simglucose.patient.t1dpatient_2 import CtrlObservation
 from simglucose.controller.simple_pid_ctrller import SimplePIDController
 
+import sys
+
+sys.path.append(str(Path(__file__).parent.parent))
+
 from test_utils import (
     plot_and_show,
     plot_and_save,

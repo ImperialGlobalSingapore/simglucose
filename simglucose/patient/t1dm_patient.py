@@ -21,7 +21,7 @@ class T1DMPatient(Patient):
     SAMPLE_TIME = 1  # min
     EAT_RATE = 5  # g/min CHO
     CURRENT_FOLDER = Path(__file__).parent
-    PATIENT_FOLDER = CURRENT_FOLDER / "patients"
+    PATIENT_FOLDER = CURRENT_FOLDER / "patient_jsons"
 
     def __init__(
         self,

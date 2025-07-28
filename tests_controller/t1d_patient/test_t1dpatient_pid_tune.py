@@ -10,6 +10,9 @@ from test_t1dpatient_pid import (
     run_sim_simple_pid_single_meal,
     run_sim_simple_pid_attack,
 )
+import sys
+
+sys.path.append(str(Path(__file__).parent.parent))
 from test_utils import get_patients, Scenario
 
 # current file path

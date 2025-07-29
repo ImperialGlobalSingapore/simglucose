@@ -7,7 +7,7 @@ from simglucose.patient.t1dm_patient import T1DMPatient, Action
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import plot_and_show, plot_and_save, get_rmse
+from test_utils import plot_and_show, plot_and_save, get_rmse, Scenario
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -18,12 +18,12 @@ file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 
 img_dir = parent_folder / "imgs"
-best_basal_folder = parent_folder / "results" / "best_basal_rate"
 
 
 def test_patient(
     patient_name="adolescent#003",
     fig_title=None,
+    scenario=Scenario.NO_MEAL,
     save_fig=False,
     show_fig=False,
 ):
@@ -39,7 +39,8 @@ def test_patient(
     BG = []
 
     while p.t < 2000:
-        carb = 0
+
+        carb = scenario.get_carb(p.t, p._params.BW)
 
         if basal_rate is not None:
             act = Action(insulin=basal_rate, CHO=carb)
@@ -54,9 +55,11 @@ def test_patient(
 
     if fig_title is None:
         if basal_rate is not None:
-            fig_title = f"test_patient_{patient_name}_basal_{basal_rate:.3f}"
+            fig_title = (
+                f"test_patient_{patient_name}_basal_{basal_rate:.3f}_{scenario.name}"
+            )
         else:
-            fig_title = f"test_patient_{patient_name}_no_basal"
+            fig_title = f"test_patient_{patient_name}_no_basal_{scenario.name}"
 
     if show_fig:
         plot_and_show(t, BG, CHO, insulin, BG[0], fig_title)
@@ -68,8 +71,29 @@ def test_patient(
 if __name__ == "__main__":
     # test patient and verify the best basal rate
     patient_group = ["adolescent", "adult", "child"]
+    scenarios = [
+        Scenario.NO_MEAL,
+        Scenario.SINGLE_MEAL,
+        Scenario.ONE_DAY,
+        Scenario.THREE_DAY,
+    ]
 
-    for patient_type in patient_group:
-        for patient_id in range(1, 10):
-            patient_name = f"{patient_type}#{patient_id:03d}"
-            test_patient(patient_name=patient_name, save_fig=True, show_fig=False)
+    from concurrent.futures import ThreadPoolExecutor
+
+    def task(patient_type, patient_id, scenario):
+        print(f"Testing {patient_type}#{patient_id:03d} with scenario {scenario.name}")
+        patient_name = f"{patient_type}#{patient_id:03d}"
+        test_patient(
+            patient_name=patient_name,
+            scenario=scenario,
+            save_fig=True,
+            show_fig=False,
+        )
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [
+            executor.submit(task, patient_type, patient_id, scenario)
+            for patient_type in patient_group
+            for patient_id in range(1, 10)
+            for scenario in scenarios
+        ]

@@ -15,7 +15,60 @@ class PatientType(Enum):
 class Scenario(Enum):
     NO_MEAL = "no_meal"
     SINGLE_MEAL = "single_meal"
-    ATTACK = "attack"
+    ONE_DAY = "one_day"
+    THREE_DAY = "three_day"
+
+    def get_carb(self, t, body_weight=None):
+        """
+        t: time in minutes
+        body_weight: weight of the patient in kg
+        """
+        default_carb_duration = 15  # hour = 15 minutes
+        carb_times_in_hour = {
+            Scenario.NO_MEAL: [],
+            Scenario.SINGLE_MEAL: [6],  # Assuming a meal at 6:00
+            Scenario.ONE_DAY: [7, 12, 19],  # Meals at 7:00, 12:00, 19:00
+            Scenario.THREE_DAY: [
+                h + 24 * d for d in range(3) for h in [7, 12, 19]
+            ],  # Meals at 7:00, 12:00, 19:00 for 3 days
+        }
+
+        # Predefined carb amounts for each meal time
+        carb_amounts = {
+            Scenario.NO_MEAL: [],
+            Scenario.SINGLE_MEAL: [50],  # 50g of carbs for single meal
+            Scenario.ONE_DAY: [40, 50, 70],  # 40g, 50g, 70g of carbs per meal
+            Scenario.THREE_DAY: [
+                40,
+                50,
+                70,
+            ]
+            * 3,  # 40g, 50g, 70g of carbs per meal for 3 days
+        }
+        if body_weight is not None:
+            carb_amounts[Scenario.ONE_DAY] = [
+                0.5 * body_weight,
+                0.8 * body_weight,
+                0.8 * body_weight,
+            ]
+            carb_amounts[Scenario.THREE_DAY] = [
+                0.5 * body_weight,
+                0.8 * body_weight,
+                0.8 * body_weight,
+            ] * 3
+
+        carb_time_range = (
+            np.array(carb_times_in_hour[self]) * 60
+        )  # Convert hours to minutes
+        carb_time_range = np.vstack(
+            (carb_time_range, carb_time_range + default_carb_duration)
+        ).T
+        find_within = carb_time_range - t > 0
+        find_within = find_within[:, 0] ^ find_within[:, 1]
+        if np.any(find_within):
+            idx = np.where(find_within)[0][0]
+            return carb_amounts[self][idx]
+        return 0
 
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
@@ -101,3 +154,17 @@ def get_patient_by_group(patient_type: str):
         return [f"adult#00{i}" for i in range(1, 10)]
     elif patient_type == PatientType.CHILD.value:
         return [f"child#00{i}" for i in range(1, 10)]
+
+
+if __name__ == "__main__":
+    print(Scenario.THREE_DAY.get_carb(60, 70))
+    print(Scenario.ONE_DAY.get_carb(60, 70))
+    print(Scenario.SINGLE_MEAL.get_carb(60, 70))
+    print(Scenario.NO_MEAL.get_carb(60, 70))
+
+    print(Scenario.NO_MEAL.get_carb(365, 70))
+    print(Scenario.SINGLE_MEAL.get_carb(365, 70))
+    print(Scenario.ONE_DAY.get_carb(425, 70))
+    print(Scenario.THREE_DAY.get_carb(425, 70))
+    print(Scenario.ONE_DAY.get_carb(425))
+    print(Scenario.THREE_DAY.get_carb(425))

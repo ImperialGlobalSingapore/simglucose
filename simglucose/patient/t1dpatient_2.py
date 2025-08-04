@@ -9,8 +9,8 @@ import pkg_resources
 from simglucose.controller.basal_bolus_ctrller import BBController
 from simglucose.controller.pid_ctrller import PIDController
 from datetime import datetime, timedelta
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 
 Action = namedtuple("patient_action", ["CHO", "insulin"])
@@ -290,7 +290,8 @@ class T1DPatient(Patient):
         self.is_eating = False
         self.planned_meal = 0
 
-CtrlObservation = namedtuple('CtrlObservation', ["CGM"])
+
+CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
 if __name__ == "__main__":
     logger.setLevel(logging.INFO)
@@ -315,17 +316,17 @@ if __name__ == "__main__":
     new_state = None
 
     # Controller selection: 'pid' or 'bb' (basal-bolus)
-    CONTROLLER_TYPE = 'oref0'  # Change this to 'bb' to use BBController
-    
+    CONTROLLER_TYPE = "oref0"  # Change this to 'bb' to use BBController
+
     # Select controller based on CONTROLLER_TYPE
-    if CONTROLLER_TYPE.lower() == 'pid':
+    if CONTROLLER_TYPE.lower() == "pid":
         ctrl = PIDController()
         logger.info("Using PID Controller")
-    elif CONTROLLER_TYPE.lower() == 'bb':
+    elif CONTROLLER_TYPE.lower() == "bb":
         ctrl = BBController()
         logger.info("Using Basal-Bolus Controller")
-    elif CONTROLLER_TYPE.lower() == 'oref0':
-        ctrl = ORefZeroController()
+    elif CONTROLLER_TYPE.lower() == "oref0":
+        ctrl = ORefZeroController(timeout=30000)
         logger.info("Using Oref0")
     current_sim_time = datetime.now()  # Starting time for simulation
     while p.t < 288:
@@ -333,7 +334,7 @@ if __name__ == "__main__":
         carb = 0
         if p.t == copy_state:
             new_state = p.state
-        
+
         # if p.t == 100:
         #     carb = 80
         #     ins = 80.0 / 6.0 + basal
@@ -341,14 +342,13 @@ if __name__ == "__main__":
         # #     ins = 80.0 / 12.0 + basal
         # act = Action(insulin=ins, CHO=carb)
         # ins = basal2
-        
         carb = 0
         if p.t == 100:
             carb = 80
-            
+
         if p.t == 200:
             carb = 50
-        
+
         if p.t == 240:
             carb = 50
         # ins = 80.0 / 6.0 + basal2
@@ -356,12 +356,12 @@ if __name__ == "__main__":
         #     ins = 80.0 / 12.0 + basal
         ctrl_obs = CtrlObservation(p.observation.Gsub)
         ctrl_action = ctrl.policy(
-            observation=ctrl_obs, 
-            reward=0, 
-            done=False, 
-            patient_name=patient_name, 
+            observation=ctrl_obs,
+            reward=0,
+            done=False,
+            patient_name=patient_name,
             meal=carb,
-            time=current_sim_time  # Add the current simulation time
+            time=current_sim_time,  # Add the current simulation time
         )
         ins = ctrl_action.basal + ctrl_action.bolus
         act = Action(insulin=ins, CHO=carb)
@@ -373,13 +373,13 @@ if __name__ == "__main__":
         current_sim_time += timedelta(minutes=5)  # Assuming 5-minute steps
 
     p2 = T1DPatient(params=p._params, init_state=new_state, t0=copy_state)
-    
+
     # Select controller for second simulation
-    if CONTROLLER_TYPE.lower() == 'pid':
+    if CONTROLLER_TYPE.lower() == "pid":
         ctrl = PIDController()
     else:
         ctrl = BBController()
-    
+
     basal2 = p2._params.u2ss * p2._params.BW / 6000  # U/min
     t2 = []
     CHO2 = []
@@ -387,22 +387,22 @@ if __name__ == "__main__":
     BG2 = []
     while p2.t < 5:
         # ins = basal2
-        
+
         carb = 0
         if p2.t == 100:
             carb = 80
-            
+
         # ins = 80.0 / 6.0 + basal2
         # if p.t == 150:
         #     ins = 80.0 / 12.0 + basal
         ctrl_obs = CtrlObservation(p2.observation.Gsub)
         ctrl_action = ctrl.policy(
-            observation=ctrl_obs, 
-            reward=0, 
-            done=False, 
-            patient_name=patient_name, 
+            observation=ctrl_obs,
+            reward=0,
+            done=False,
+            patient_name=patient_name,
             meal=carb,
-            time=current_sim_time  # Add the current simulation time
+            time=current_sim_time,  # Add the current simulation time
         )
         ins = ctrl_action.basal + ctrl_action.bolus
         act = Action(insulin=ins, CHO=carb)
@@ -412,7 +412,7 @@ if __name__ == "__main__":
         BG2.append(p2.observation.Gsub)
         p2.step(act)
         current_sim_time += timedelta(minutes=5)  # Assuming 5-minute steps
-    
+
     import matplotlib.pyplot as plt
 
     fig, ax = plt.subplots(3, sharex=True)
@@ -422,4 +422,4 @@ if __name__ == "__main__":
     ax[1].plot(t2, CHO2)
     ax[2].plot(t, insulin)
     ax[2].plot(t2, insulin2)
-    plt.savefig('result.png')
+    plt.savefig("result.png")

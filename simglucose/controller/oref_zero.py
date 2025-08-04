@@ -1,14 +1,11 @@
-from collections import namedtuple
-import numpy as np
-
-from simglucose.controller.base import Controller, Action
+import zoneinfo
 import logging
-from datetime import datetime, timedelta
 
 import requests
-from datetime import datetime, timedelta
+from collections import namedtuple
 from typing import Dict, Any, Optional
-import json
+from datetime import datetime, timedelta
+from simglucose.controller.base import Controller, Action
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +16,8 @@ class ORefZeroController:
     OpenAPS oref0 controller that communicates with Node.js server
     for insulin dosage recommendations
     """
+
+    DEFAULT_TIMEZONE = "UTC"
 
     def __init__(
         self,
@@ -77,7 +76,14 @@ class ORefZeroController:
             "isfProfile": {
                 "first": 1,
                 "sensitivities": [
-                    {"endOffset": 1440, "offset": 0, "x": 0, "sensitivity": 50, "start": "00:00:00", "i": 0}
+                    {
+                        "endOffset": 1440,
+                        "offset": 0,
+                        "x": 0,
+                        "sensitivity": 50,
+                        "start": "00:00:00",
+                        "i": 0,
+                    }
                 ],
                 "user_preferred_units": "mg/dL",
                 "units": "mg/dL",
@@ -86,7 +92,9 @@ class ORefZeroController:
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 
-    def _make_request(self, method: str, endpoint: str, data: Optional[Dict] = None) -> Dict[str, Any]:
+    def _make_request(
+        self, method: str, endpoint: str, data: Optional[Dict] = None
+    ) -> Dict[str, Any]:
         """Make HTTP request to the server with error handling"""
         url = f"{self.server_url}{endpoint}"
 
@@ -110,13 +118,17 @@ class ORefZeroController:
             logger.error(f"Connection error to {url}")
             raise Exception("Could not connect to OpenAPS server")
         except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error {e.response.status_code} for {url}: {e.response.text}")
+            logger.error(
+                f"HTTP error {e.response.status_code} for {url}: {e.response.text}"
+            )
             raise Exception(f"Server returned error: {e.response.status_code}")
         except Exception as e:
             logger.error(f"Unexpected error for {url}: {str(e)}")
             raise
 
-    def _initialize_patient(self, patient_name: str, profile: Optional[Dict] = None) -> bool:
+    def _initialize_patient(
+        self, patient_name: str, profile: Optional[Dict] = None
+    ) -> bool:
         patient_name = patient_name.replace("#", "")
         """Initialize patient on the server"""
         if patient_name in self.patient_profiles:
@@ -129,11 +141,17 @@ class ORefZeroController:
         init_data = {
             "profile": patient_profile,
             "initialData": {"glucoseHistory": [], "pumpHistory": [], "carbHistory": []},
-            "settings": {"timezone": "UTC", "historyRetentionHours": 24, "autoCleanup": True},
+            "settings": {
+                "timezone": self.DEFAULT_TIMEZONE,
+                "historyRetentionHours": 24,
+                "autoCleanup": True,
+            },
         }
 
         try:
-            response = self._make_request("POST", f"/patients/{patient_name}/initialize", init_data)
+            response = self._make_request(
+                "POST", f"/patients/{patient_name}/initialize", init_data
+            )
             self.patient_profiles[patient_name] = patient_profile
             self.glucose_history[patient_name] = []
             self.meal_history[patient_name] = []
@@ -147,25 +165,59 @@ class ORefZeroController:
             logger.error(f"Failed to initialize patient {patient_name}: {str(e)}")
             return False
 
+    @staticmethod
+    def local_timezone() -> datetime:
+        return datetime.now().astimezone()
+
+    def _convert_to_utc(self, local_time: datetime) -> datetime:
+        if local_time.tzinfo is None:
+            # If naive datetime, assume local timezone
+            local_time = local_time.replace(tzinfo=self.local_timezone().tzinfo)
+        utc_time = local_time.astimezone(zoneinfo.ZoneInfo(self.DEFAULT_TIMEZONE))
+        # Remove the timezone info (make it naive)
+        return utc_time.replace(tzinfo=None)
+
     def _convert_time_to_timestamp(self, time_obj) -> str:
         """Convert time object to ISO timestamp string"""
-        if isinstance(time_obj, datetime):
-            return time_obj.isoformat() + "Z"
-        elif isinstance(time_obj, str):
-            # Assume it's already a valid timestamp
-            return time_obj
-        else:
-            # Default to current time
-            return datetime.utcnow().isoformat() + "Z"
+        if isinstance(time_obj, str):
 
-    def _prepare_new_data(self, patient_name: str, glucose: float, meal: float, timestamp: str) -> Dict[str, Any]:
+            # Assume it's already a valid timestamp
+            try:
+                time_obj = datetime.fromisoformat(time_obj.rstrip("Z"))
+            except:
+                raise ValueError(
+                    f"Invalid timestamp format, could not convert {time_obj} to datetime"
+                )
+        elif isinstance(time_obj, (int, float)):
+            # Assume it's a Unix timestamp
+            try:
+                time_obj = datetime.fromtimestamp(time_obj)
+            except:
+                raise ValueError(
+                    f"Invalid timestamp format, could not convert {time_obj} to datetime"
+                )
+
+        # now we have a datetime object
+        if not isinstance(time_obj, datetime):
+            raise ValueError(f"Expected datetime object, got {type(time_obj)}")
+        # Convert to UTC and format as ISO string
+        utc_time = self._convert_to_utc(time_obj)
+        return utc_time.isoformat() + "Z"  # Append 'Z' to indicate
+
+    def _prepare_new_data(
+        self, patient_name: str, glucose: float, meal: float, timestamp: str
+    ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
         new_data = {}
 
         # Add glucose reading if we have one
         if glucose > 0:
+            # Convert UTC timestamp string to local datetime, then to int (epoch seconds)
+            utc_dt = datetime.fromisoformat(timestamp.rstrip("Z")).replace(
+                tzinfo=zoneinfo.ZoneInfo(self.DEFAULT_TIMEZONE)
+            )
             glucose_entry = {
-                "date": int(datetime.fromisoformat(timestamp.rstrip("Z")).timestamp() * 1000),
+                "date": int(utc_dt.timestamp() * 1000),  # Convert to milliseconds
                 "glucose": glucose,
                 "timestamp": timestamp,
             }
@@ -174,13 +226,25 @@ class ORefZeroController:
 
         # Add carb entry if we have a meal
         if meal > 0:
-            carb_entry = {"timestamp": timestamp, "carbs": meal, "enteredBy": "controller"}
+            carb_entry = {
+                "timestamp": timestamp,
+                "carbs": meal,
+                "enteredBy": "controller",
+            }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
 
         return new_data
 
-    def policy(self, observation, reward: float, done: bool, patient_name: str, meal: float, time) -> Action:
+    def policy(
+        self,
+        observation,
+        reward: float,
+        done: bool,
+        patient_name: str,
+        meal: float,
+        time,
+    ) -> Action:
         """
         Get insulin dosage recommendation from OpenAPS server
 
@@ -198,7 +262,9 @@ class ORefZeroController:
         patient_name = patient_name.replace("#", "")
         # Initialize patient if not already done
         if not self._initialize_patient(patient_name):
-            logger.warning(f"Failed to initialize patient {patient_name}, using default action")
+            logger.warning(
+                f"Failed to initialize patient {patient_name}, using default action"
+            )
             # return Action(basal=1.0, bolus=0.0)  # Default safe action
             raise ValueError("Forgot to initialise patient.")
         # Extract glucose level
@@ -206,7 +272,7 @@ class ORefZeroController:
         print(glucose_level)
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
-
+        print("timestamp:", timestamp)
         # Prepare new data
         new_data = self._prepare_new_data(patient_name, glucose_level, meal, timestamp)
         print(new_data)
@@ -221,11 +287,15 @@ class ORefZeroController:
         }
 
         # Make calculation request
-        response = self._make_request("POST", f"/patients/{patient_name}/calculate", calc_data)
+        response = self._make_request(
+            "POST", f"/patients/{patient_name}/calculate", calc_data
+        )
         print(response["suggestion"])
         # Extract recommendation
         suggestion = response.get("suggestion", {})
-        basal_rate = (suggestion.get("rate", 0.0) / 60) * self.frequency  # Default basal rate
+        basal_rate = (
+            suggestion.get("rate", 0.0) / 60
+        ) * self.frequency  # Default basal rate
         if basal_rate != 0:
             print(basal_rate)
         # Calculate bolus recommendation
@@ -266,19 +336,25 @@ class ORefZeroController:
             logger.error(f"Error getting patient status for {patient_name}: {str(e)}")
             return None
 
-    def update_patient_profile(self, patient_name: str, profile_updates: Dict[str, Any]) -> bool:
+    def update_patient_profile(
+        self, patient_name: str, profile_updates: Dict[str, Any]
+    ) -> bool:
         """Update patient profile on the server"""
         try:
             if patient_name not in self.patient_profiles:
                 logger.warning(f"Patient {patient_name} not initialized")
                 return False
 
-            response = self._make_request("PATCH", f"/patients/{patient_name}/profile", profile_updates)
+            response = self._make_request(
+                "PATCH", f"/patients/{patient_name}/profile", profile_updates
+            )
 
             # Update local copy
             self.patient_profiles[patient_name].update(profile_updates)
 
-            logger.info(f"Updated profile for patient {patient_name}: {list(profile_updates.keys())}")
+            logger.info(
+                f"Updated profile for patient {patient_name}: {list(profile_updates.keys())}"
+            )
             return True
 
         except Exception as e:

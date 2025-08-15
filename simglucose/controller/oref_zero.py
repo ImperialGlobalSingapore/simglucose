@@ -22,7 +22,8 @@ class ORefZeroController:
     def __init__(
         self,
         server_url: str = "http://localhost:3000",
-        patient_profile: Optional[Dict[str, Any]] = None,
+        profile: Optional[Dict[str, Any]] = None,
+        current_basal: Optional[float] = None,
         timeout: int = 30,
         frequency=5,  # in minutes
     ):
@@ -48,14 +49,14 @@ class ORefZeroController:
         self.pump_history = {}  # patientId -> list of pump events
 
         # Default patient profile (based on your server's test cases)
-        self.default_profile = patient_profile or {
+        self.default_profile = profile or {
             "carb_ratio": 10,
             "sens": 50,
             "dia": 6,
             "max_bg": 120,
             "min_bg": 120,
             "max_basal": 4.0,
-            "current_basal": 1.0,
+            "current_basal": current_basal,
             "max_iob": 6.0,
             "maxCOB": 100,
             "max_daily_safety_multiplier": 4,
@@ -90,7 +91,20 @@ class ORefZeroController:
             },
         }
 
+        if current_basal is not None:
+            self.default_profile["current_basal"] = current_basal
+
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
+
+    def _validate_profile(self, profile: Dict[str, Any]) -> bool:
+        required_keys = [
+            "current_basal",
+        ]
+        for key in required_keys:
+            if key not in profile:
+                logger.error(f"Missing required profile key: {key}")
+                return False
+        return True
 
     def _make_request(
         self, method: str, endpoint: str, data: Optional[Dict] = None
@@ -137,6 +151,10 @@ class ORefZeroController:
 
         patient_profile = profile or self.default_profile.copy()
 
+        if not self._validate_profile(patient_profile):
+            logger.error(f"Invalid patient profile for {patient_name}")
+            return False
+
         # Prepare initialization data
         init_data = {
             "profile": patient_profile,
@@ -144,7 +162,7 @@ class ORefZeroController:
             "settings": {
                 "timezone": self.DEFAULT_TIMEZONE,
                 "historyRetentionHours": 24,
-                "autoCleanup": True,
+                "autoCleanup": False,
             },
         }
 
@@ -166,13 +184,13 @@ class ORefZeroController:
             return False
 
     @staticmethod
-    def local_timezone() -> datetime:
+    def _local_timezone() -> datetime:
         return datetime.now().astimezone()
 
     def _convert_to_utc(self, local_time: datetime) -> datetime:
         if local_time.tzinfo is None:
             # If naive datetime, assume local timezone
-            local_time = local_time.replace(tzinfo=self.local_timezone().tzinfo)
+            local_time = local_time.replace(tzinfo=self._local_timezone().tzinfo)
         utc_time = local_time.astimezone(zoneinfo.ZoneInfo(self.DEFAULT_TIMEZONE))
         # Remove the timezone info (make it naive)
         return utc_time.replace(tzinfo=None)
@@ -269,10 +287,10 @@ class ORefZeroController:
             raise ValueError("Forgot to initialise patient.")
         # Extract glucose level
         glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
-        print(glucose_level)
+        # print(glucose_level)
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
-        print("timestamp:", timestamp)
+        # print("timestamp:", timestamp)
         # Prepare new data
         new_data = self._prepare_new_data(patient_name, glucose_level, meal, timestamp)
         print(new_data)
@@ -294,7 +312,7 @@ class ORefZeroController:
         # Extract recommendation
         suggestion = response.get("suggestion", {})
         basal_rate = (
-            suggestion.get("rate", 0.0) / 60
+            suggestion.get("rate", 0.0) / 60  # U/h -> U/min
         ) * self.frequency  # Default basal rate
         if basal_rate != 0:
             print(basal_rate)
@@ -351,6 +369,10 @@ class ORefZeroController:
 
             # Update local copy
             self.patient_profiles[patient_name].update(profile_updates)
+
+            if not self._validate_profile(self.patient_profiles[patient_name]):
+                logger.error(f"Invalid profile updates for {patient_name}")
+                return False
 
             logger.info(
                 f"Updated profile for patient {patient_name}: {list(profile_updates.keys())}"

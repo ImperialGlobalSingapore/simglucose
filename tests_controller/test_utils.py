@@ -1,3 +1,4 @@
+from pathlib import Path
 import matplotlib.pyplot as plt
 from enum import Enum
 import numpy as np
@@ -83,7 +84,7 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     ax[1].set_ylabel("CHO (g)")
     ax[2].plot(t, insulin)
     ax[2].grid()
-    ax[2].set_ylabel("Insulin (U)")
+    ax[2].set_ylabel("Insulin (pmol/kg/min)")
     ax[2].set_xlabel("Time (min)")
     fig.subplots_adjust(bottom=0.15)
     fig.legend(loc="lower center", ncol=3)
@@ -101,9 +102,10 @@ def save_name_pattern(k_P, k_I, k_D, sample_time, basal_rate, remark=""):
 
 
 def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
+    fig_title = Path(file_name).stem
     fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
-    _plot(fig, ax, t, BG, CHO, insulin, target_BG, file_name)
-    fig.savefig(f"{file_name}.png")
+    _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title)
+    fig.savefig(f"{file_name}")
     plt.close(fig)
 
 

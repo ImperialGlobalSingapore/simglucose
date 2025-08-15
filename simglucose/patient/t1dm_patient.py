@@ -2,11 +2,11 @@ import numpy as np
 import logging
 import json
 
-from simglucose.patient.base import Patient
-from scipy.integrate import ode
-from collections import namedtuple
-from datetime import datetime, timedelta
 from pathlib import Path
+from datetime import datetime, time, timedelta
+from collections import namedtuple
+from scipy.integrate import ode
+from simglucose.patient.base import Patient
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,6 @@ class T1DMPatient(Patient):
         params,
         init_state=None,
         init_bg=None,
-        t0=0,
     ):
         """
         T1DMPatient constructor.
@@ -47,7 +46,8 @@ class T1DMPatient(Patient):
         self._params = params
         self._init_state = init_state
         self._init_bg = init_bg
-        self.t0 = t0
+        self.t0 = 0
+        self.t_start = datetime.now()
         self.reset()
 
     @classmethod
@@ -82,11 +82,41 @@ class T1DMPatient(Patient):
         return cls(params, **kwargs)
 
     @property
+    def basal(self):
+        """
+        Return the basal rate in U/min
+        """
+        return self._basal(self._params.u2ss, self._params.BW)
+
+    @staticmethod
+    def _basal(u2ss, BW):
+        """
+        Return the basal rate in U/min
+        u2ss: basal rate in U/min
+        BW: body weight in kg
+        """
+        return u2ss * BW / 6000
+
+    @property
+    def weight(self):
+        return self._params.BW
+
+    @property
     def state(self):
         return self._odesolver.y
 
     @property
     def t(self):
+        """
+        Return the current time in minutes
+        """
+        return timedelta(minutes=self.t_elapsed) + self.t_start
+
+    @property
+    def t_elapsed(self):
+        """
+        Return the elapsed time in minutes since the start of the simulation
+        """
         return self._odesolver.t
 
     @property
@@ -125,6 +155,8 @@ class T1DMPatient(Patient):
         """
         Reset the patient state to default intial state
         """
+        self.t_start = datetime.now()
+
         if self._init_state is None:
             self.init_state = np.copy(self._params.x0)
         else:
@@ -246,20 +278,20 @@ class T1DMPatient(Patient):
 
         # Detect eating or not and update last digestion amount
         if action.CHO > 0 and self._last_action.CHO <= 0:
-            logger.info("t = {}, patient starts eating ...".format(self.t))
+            logger.info("t = {}, patient starts eating ...".format(self.t_elapsed))
             self._last_Qsto = self.state[0] + self.state[1]  # unit: mg
             self._last_foodtaken = 0  # unit: g
             self.is_eating = True
 
         if to_eat > 0:
-            logger.debug("t = {}, patient eats {} g".format(self.t, action.CHO))
+            logger.debug("t = {}, patient eats {} g".format(self.t_elapsed, action.CHO))
 
         if self.is_eating:
             self._last_foodtaken += action.CHO  # g
 
         # Detect eating ended
         if action.CHO <= 0 and self._last_action.CHO > 0:
-            logger.info("t = {}, Patient finishes eating!".format(self.t))
+            logger.info("t = {}, Patient finishes eating!".format(self.t_elapsed))
             self.is_eating = False
 
         # Update last input
@@ -276,12 +308,19 @@ class T1DMPatient(Patient):
             raise
 
     @staticmethod
+    def u_to_pmol(U):
+        return U * 6000
+
+    @staticmethod
+    def pmol_to_u(pmol):
+        return pmol / 6000
+
+    @staticmethod
     def model(t, x, action, params, last_Qsto, last_foodtaken):
         dxdt = np.zeros(18)
         d = action.CHO * 1000  # g -> mg
-        # insulin = action.insulin * 6000 / params.BW  # U/min -> pmol/kg/min
-        insulin = action.insulin / params.BW
-        basal = params.u2ss * params.BW / 6000  # U/min
+        insulin = action.insulin * 6000 / params.BW  # U/min -> pmol/kg/min
+        basal = T1DMPatient._basal(params.u2ss, params.BW)
 
         # Glucose in the stomach
         qsto = x[0] + x[1]
@@ -427,79 +466,44 @@ if __name__ == "__main__":
     logger.addHandler(ch)
     patient_name = "adolescent#003"
     p = T1DMPatient.withName(patient_name)
-    basal = p._params.u2ss * p._params.BW / 6000  # U/min
+    basal = p.basal
     t = []
     CHO = []
     insulin = []
     BG = []
-    copy_state = 50
     new_state = None
 
     # Select controller based on CONTROLLER_TYPE
     current_sim_time = datetime.now()  # Starting time for simulation
-    while p.t < 10000:
+    while p.t_elapsed < 300:
         ins = basal
         carb = 0
 
-        if p.t == copy_state:
-            new_state = p.state
-
-        if p.t == 100:
+        if p.t_elapsed == 100:
             carb = 80
-
-        if p.t == 200:
+        elif p.t_elapsed == 200:
             carb = 50
+
+        if p.t_elapsed > 100 and p.t_elapsed <= 150:
+            ins = p.basal * 10
+        elif p.t_elapsed > 200 and p.t_elapsed <= 250:
+            ins = p.basal * 5
 
         ctrl_obs = CtrlObservation(p.observation.Gsub)
         act = Action(insulin=ins, CHO=carb)
 
-        t.append(p.t)
+        t.append(p.t_elapsed)
         CHO.append(act.CHO)
         insulin.append(act.insulin)
         BG.append(p.observation.Gsub)
         p.step(act)
-        current_sim_time += timedelta(minutes=5)  # Assuming 5-minute steps
+        print(
+            f"Time: {p.t}, time elapsed :{p.t_elapsed}, "
+            f"BG: {p.observation.Gsub}, CHO: {act.CHO}, Insulin: {act.insulin}"
+        )
 
     fig, ax = plt.subplots(3, sharex=True)
     ax[0].plot(t, BG)
     ax[1].plot(t, CHO)
     ax[2].plot(t, insulin)
-    plt.show()
-
-    p2 = T1DMPatient(params=p._params, init_state=new_state, t0=copy_state)
-
-    basal2 = p2._params.u2ss * p2._params.BW / 6000  # U/min
-    t2 = []
-    CHO2 = []
-    insulin2 = []
-    BG2 = []
-    while p2.t < 10000:
-        # ins = basal2
-
-        carb = 0
-        if p2.t == 100:
-            carb = 80
-
-        # ins = 80.0 / 6.0 + basal2
-        # if p.t == 150:
-        #     ins = 80.0 / 12.0 + basal
-        ctrl_obs = CtrlObservation(p2.observation.Gsub)
-        basal = 1  # TODO
-        bolus = 1
-        ins = basal + bolus
-        act = Action(insulin=ins, CHO=carb)
-        t2.append(p2.t)
-        CHO2.append(act.CHO)
-        insulin2.append(act.insulin)
-        BG2.append(p2.observation.Gsub)
-        p2.step(act)
-        current_sim_time += timedelta(minutes=5)  # Assuming 5-minute steps
-
-    fig, ax = plt.subplots(3, sharex=True)
-    ax[0].plot(t, BG)
-    ax[0].plot(t2, BG2)
-    ax[1].plot(t, CHO)
-    ax[1].plot(t2, CHO2)
-    ax[2].plot(t, insulin)
-    ax[2].plot(t2, insulin2)
     plt.show()

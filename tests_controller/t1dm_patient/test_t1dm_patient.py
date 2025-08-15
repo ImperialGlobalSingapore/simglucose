@@ -38,16 +38,16 @@ def test_patient(
     insulin = []
     BG = []
 
-    while p.t < 2000:
+    while p.t_elapsed < 2000:
 
-        carb = scenario.get_carb(p.t, p._params.BW)
+        carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
         if basal_rate is not None:
             act = Action(insulin=basal_rate, CHO=carb)
         else:
             act = Action(insulin=0, CHO=carb)
 
-        t.append(p.t)
+        t.append(p.t_elapsed)
         CHO.append(act.CHO)
         insulin.append(act.insulin)
         BG.append(p.observation.Gsub)

@@ -97,13 +97,34 @@ class ORefZeroController:
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 
     def _validate_profile(self, profile: Dict[str, Any]) -> bool:
-        required_keys = [
-            "current_basal",
-        ]
-        for key in required_keys:
-            if key not in profile:
-                logger.error(f"Missing required profile key: {key}")
-                return False
+        """
+        Validate the patient profile.
+        Raises ValueError if the profile is invalid.
+        """
+        required = ['carb_ratio', 'sens', 'isfProfile', 'max_bg', 'min_bg', 'current_basal']
+        missing = [field for field in required if field not in profile]
+
+        if missing:
+            raise ValueError(f"Missing required profile fields: {', '.join(missing)}")
+
+        if profile['carb_ratio'] < 3:
+            raise ValueError(f"carb_ratio {profile['carb_ratio']} out of bounds (minimum 3)")
+
+        if profile['sens'] <= 0:
+            raise ValueError(f"sens {profile['sens']} must be positive")
+
+        # Validate isfProfile structure
+        if not isinstance(profile.get('isfProfile'), dict):
+            raise ValueError('isfProfile must be an object')
+
+        sensitivities = profile['isfProfile'].get('sensitivities')
+        if not isinstance(sensitivities, list) or not sensitivities:
+            raise ValueError('isfProfile.sensitivities must be a non-empty array')
+
+        for s in sensitivities:
+            if not isinstance(s, dict) or s.get('sensitivity') is None or s['sensitivity'] <= 0:
+                raise ValueError("Each sensitivity entry in isfProfile must have a positive 'sensitivity' value.")
+
         return True
 
     def _make_request(

@@ -183,7 +183,7 @@ class ORefZeroController:
             "settings": {
                 "timezone": self.DEFAULT_TIMEZONE,
                 "historyRetentionHours": 24,
-                "autoCleanup": False,
+                "autoCleanup": True,
             },
         }
 
@@ -320,8 +320,9 @@ class ORefZeroController:
             "currentTime": timestamp,
             "newData": new_data,
             "options": {
-                "microbolus": True,  # Enable super micro bolus if available
+                "microbolus": False,  # Disable, since oref0 doesn't support microbolus, though it might be available in the future for oref1
                 "overrideProfile": {},  # Could be used for temporary profile changes
+                "autosens": {"ratio": 1.0},  # No adjustment
             },
         }
 

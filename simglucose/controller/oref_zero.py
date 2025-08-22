@@ -368,11 +368,8 @@ class ORefZeroController:
         print(response["suggestion"])
         # Extract recommendation
         suggestion = response.get("suggestion", {})
-        basal_rate = (
-            suggestion.get("rate", 0.0) / 60  # U/h -> U/min
-        ) * self.frequency  # Default basal rate
-        if basal_rate != 0:
-            print(basal_rate)
+        basal_rate = suggestion.get("rate", 0.0) / 60  # U/h -> U/min
+
         # Calculate bolus recommendation
         # OpenAPS typically provides basal adjustments, bolus calculation
         # might need to be derived from the suggestion

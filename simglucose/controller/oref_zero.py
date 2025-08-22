@@ -21,9 +21,9 @@ class ORefZeroController:
 
     def __init__(
         self,
+        current_basal: float,
         server_url: str = "http://localhost:3000",
         profile: Optional[Dict[str, Any]] = None,
-        current_basal: Optional[float] = None,
         timeout: int = 30,
         frequency=5,  # in minutes
     ):
@@ -31,6 +31,7 @@ class ORefZeroController:
         Initialize the ORefZero controller
 
         Args:
+            current_basal: current basal rate
             server_url: URL of the Node.js OpenAPS server
             patient_profile: Custom patient profile, uses default if None
             timeout: Request timeout in seconds
@@ -48,84 +49,100 @@ class ORefZeroController:
         self.meal_history = {}  # patientId -> list of meal entries
         self.pump_history = {}  # patientId -> list of pump events
 
-        # Default patient profile (based on your server's test cases)
+        # Store the required profile
+        # TODO: verify the parameters with loopinsight
         self.default_profile = profile or {
-            "carb_ratio": 10,
-            "sens": 50,
-            "dia": 6,
-            "max_bg": 120,
-            "min_bg": 120,
-            "max_basal": 4.0,
-            "current_basal": current_basal,
-            "max_iob": 6.0,
-            "maxCOB": 100,
-            "max_daily_safety_multiplier": 4,
-            "current_basal_safety_multiplier": 5,
-            "autosens_max": 2,
-            "autosens_min": 0.5,
-            "autosens": False,
-            "enableSMB_with_bolus": True,
-            "enableSMB_with_COB": True,
-            "curve": "rapid-acting",
-            "insulinPeakTime": 75,
-            "basalprofile": [
-                {"minutes": 0, "rate": 1.0, "start": "00:00:00", "i": 0},
-                {"minutes": 360, "rate": 0.8, "start": "06:00:00", "i": 1},
-                {"minutes": 720, "rate": 1.2, "start": "12:00:00", "i": 2},
-                {"minutes": 1080, "rate": 0.9, "start": "18:00:00", "i": 3},
-            ],
+            "current_basal": current_basal,  # Current basal rate in U/h
+            # Safety parameters, commonly adjusted
+            "max_iob": 6,  # Maximum insulin on board allowed (0 = no limit enforced by OpenAPS)
+            "sens": 50,  #  # Insulin Sensitivity Factor (ISF): The number of mg/dL that blood glucose is expected to drop per unit of insulin. This is a primary parameter for all dosing calculations.
+            "carb_ratio": 10,  # Carb Ratio (g/U): The number of grams of carbohydrates covered by 1 unit of insulin. Critical for meal bolus calculations.
+            "dia": 6,  # Duration of Insulin Action in hours - how long insulin remains active in the body
+            "max_daily_safety_multiplier": 3,  # Limits daily insulin to 3x the max daily basal
+            "current_basal_safety_multiplier": 4,  # Limits current temp basal to 4x current scheduled basal
+            # ISF Profile - Insulin Sensitivity Factor
             "isfProfile": {
+                "units": "mg/dL",
+                "user_preferred_units": "mg/dL",
                 "first": 1,
                 "sensitivities": [
                     {
-                        "endOffset": 1440,
+                        "i": 0,
+                        "start": "00:00:00",
+                        "sensitivity": 50,  # Adjust based on patient - 50 mg/dL drop per unit
                         "offset": 0,
                         "x": 0,
-                        "sensitivity": 50,
-                        "start": "00:00:00",
-                        "i": 0,
+                        "endOffset": 1440,
                     }
                 ],
-                "user_preferred_units": "mg/dL",
-                "units": "mg/dL",
             },
+            # Blood glucose targets
+            "min_bg": 120,  # Lower target - algorithm actively tries to stay above this
+            "max_bg": 120,  # Upper target - less actively used by default
+            # Autosens parameters
+            "autosens_max": 1.2,  # Maximum autosens ratio (20% increase in sensitivity)
+            "autosens_min": 0.7,  # Minimum autosens ratio (30% decrease in sensitivity)
+            "rewind_resets_autosens": True,  # Reset autosens to neutral after pump rewind
+            "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day (used for autosens calculations)
+            # Temp target adjustments
+            "high_temptarget_raises_sensitivity": False,  # Don't raise sensitivity for high temp targets
+            "low_temptarget_lowers_sensitivity": False,  # Don't lower sensitivity for low temp targets
+            "sensitivity_raises_target": True,  # Raise BG target when autosens detects sensitivity
+            "resistance_lowers_target": False,  # Don't lower BG target when autosens detects resistance
+            "exercise_mode": False,  # Disable exercise mode adjustments
+            "half_basal_exercise_target": 160,  # Exercise target threshold (not used when exercise_mode=False)
+            # Carb absorption parameters
+            "maxCOB": 120,  # Maximum carbs on board (safety limit)
+            "min_5m_carbimpact": 8.0,  # Minimum carb absorption rate (8 mg/dL per 5 minutes)
+            "remainingCarbsFraction": 1.0,  # Assume all carbs will absorb over 4h
+            "remainingCarbsCap": 90,  # Max carbs assumed to absorb over 4h
+            # Temp basal behavior
+            "skip_neutral_temps": False,  # Set neutral temps when appropriate
+            "unsuspend_if_no_temp": False,  # Don't auto-unsuspend after zero temp
+            # Bolus parameters
+            "bolussnooze_dia_divisor": 2,  # Bolus snooze decays after 1/2 of DIA
+            "bolus_increment": 0.1,  # Minimum bolus increment
+            # Autotune parameters
+            "autotune_isf_adjustmentFraction": 1.0,  # Allow full ISF adjustment from autotune
+            # UAM (Unannounced Meal) - enabled but SMB disabled
+            "enableUAM": True,  # Enable unannounced meal detection
+            "A52_risk_enable": False,  # Disable A52 risk model
+            # SMB (Super Micro Bolus) - ALL DISABLED
+            "enableSMB_always": False,  # Never enable SMB automatically
+            "enableSMB_with_bolus": False,  # Don't enable SMB with bolus
+            "enableSMB_with_COB": False,  # Don't enable SMB with carbs on board
+            "enableSMB_with_temptarget": False,  # Don't enable SMB with temp targets
+            "enableSMB_after_carbs": False,  # Don't enable SMB after carbs
+            "enableSMB_high_bg": False,  # Don't enable SMB for high BG
+            "enableSMB_high_bg_target": 110,  # High BG threshold (not used when SMB disabled)
+            "allowSMB_with_high_temptarget": False,  # Don't allow SMB with high temp targets
+            "maxSMBBasalMinutes": 30,  # Max SMB size (not used when SMB disabled)
+            "maxUAMSMBBasalMinutes": 30,  # Max UAM SMB size (not used when SMB disabled)
+            "SMBInterval": 3,  # Minimum interval between SMBs (not used when SMB disabled)
+            "maxDelta_bg_threshold": 0.2,  # Max BG change threshold for SMB
+            # Insulin curve
+            "curve": "rapid-acting",  # Use rapid-acting insulin curve
+            "useCustomPeakTime": False,  # Use default peak time
+            "insulinPeakTime": 75,  # Peak time in minutes (not used when useCustomPeakTime=False)
+            # Miscellaneous
+            "carbsReqThreshold": 1,  # Threshold for carb requirement notifications
+            "noisyCGMTargetMultiplier": 1.3,  # Multiply target by 1.3 for noisy CGM data
+            "suspend_zeros_iob": True,  # Treat pump suspends as zero insulin delivery
+            "calc_glucose_noise": False,  # Don't calculate glucose noise
+            "target_bg": False,  # Don't override pump's min_bg setting
+            # Device-specific (not relevant for simulation)
+            "offline_hotspot": False,
+            "enableEnliteBgproxy": False,
+            "edison_battery_shutdown_voltage": 3050,
+            "pi_battery_shutdown_percent": 2,
         }
-
-        if current_basal is not None:
-            self.default_profile["current_basal"] = current_basal
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 
-    def _validate_profile(self, profile: Dict[str, Any]) -> bool:
-        """
-        Validate the patient profile.
-        Raises ValueError if the profile is invalid.
-        """
-        required = ['carb_ratio', 'sens', 'isfProfile', 'max_bg', 'min_bg', 'current_basal']
-        missing = [field for field in required if field not in profile]
-
-        if missing:
-            raise ValueError(f"Missing required profile fields: {', '.join(missing)}")
-
-        if profile['carb_ratio'] < 3:
-            raise ValueError(f"carb_ratio {profile['carb_ratio']} out of bounds (minimum 3)")
-
-        if profile['sens'] <= 0:
-            raise ValueError(f"sens {profile['sens']} must be positive")
-
-        # Validate isfProfile structure
-        if not isinstance(profile.get('isfProfile'), dict):
-            raise ValueError('isfProfile must be an object')
-
-        sensitivities = profile['isfProfile'].get('sensitivities')
-        if not isinstance(sensitivities, list) or not sensitivities:
-            raise ValueError('isfProfile.sensitivities must be a non-empty array')
-
-        for s in sensitivities:
-            if not isinstance(s, dict) or s.get('sensitivity') is None or s['sensitivity'] <= 0:
-                raise ValueError("Each sensitivity entry in isfProfile must have a positive 'sensitivity' value.")
-
-        return True
+    @property
+    def target_bg(self) -> float:
+        """Get the target blood glucose level."""
+        return (self.default_profile["min_bg"] + self.default_profile["max_bg"]) / 2
 
     def _make_request(
         self, method: str, endpoint: str, data: Optional[Dict] = None
@@ -171,10 +188,6 @@ class ORefZeroController:
             return True
 
         patient_profile = profile or self.default_profile.copy()
-
-        if not self._validate_profile(patient_profile):
-            logger.error(f"Invalid patient profile for {patient_name}")
-            return False
 
         # Prepare initialization data
         init_data = {
@@ -265,7 +278,7 @@ class ORefZeroController:
 
         # Add carb entry if we have a meal
         if meal > 0:
-            carb_entry = {  # FIX
+            carb_entry = {
                 "created_at": timestamp,
                 "carbs": meal,
                 "enteredBy": "controller",
@@ -392,10 +405,6 @@ class ORefZeroController:
             # Update local copy
             self.patient_profiles[patient_name].update(profile_updates)
 
-            if not self._validate_profile(self.patient_profiles[patient_name]):
-                logger.error(f"Invalid profile updates for {patient_name}")
-                return False
-
             logger.info(
                 f"Updated profile for patient {patient_name}: {list(profile_updates.keys())}"
             )
@@ -430,7 +439,7 @@ if __name__ == "__main__":
     # add ch to logger
     logger.addHandler(ch)
     # Test the controller
-    ctrl = ORefZeroController()
+    ctrl = ORefZeroController(current_basal=0.7)
 
     # Health check
     if not ctrl.health_check():

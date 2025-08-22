@@ -337,10 +337,10 @@ class ORefZeroController:
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
             # TODO: check with loopinsight which one is correct
-            # return Action(
-            #     basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
-            # )
-            return Action(basal=0, bolus=0)
+            return Action(
+                basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
+            )
+            # return Action(basal=0, bolus=0)
 
         # Extract glucose level
         glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0

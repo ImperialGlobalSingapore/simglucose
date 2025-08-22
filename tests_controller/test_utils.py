@@ -27,7 +27,7 @@ class Scenario(Enum):
         """
         # Force t to int for exact time matching
         t = int(t)
-        
+
         carb_times_in_hour = {
             Scenario.NO_MEAL: [],
             Scenario.SINGLE_MEAL: [6],  # Assuming a meal at 6:00
@@ -63,13 +63,19 @@ class Scenario(Enum):
 
         # Convert hours to minutes for comparison
         carb_times_in_minutes = [h * 60 for h in carb_times_in_hour[self]]
-        
+
         # Check if current time matches any meal time exactly
         if t in carb_times_in_minutes:
             idx = carb_times_in_minutes.index(t)
             return carb_amounts[self][idx]
         return 0
 
+max_t = {
+    Scenario.NO_MEAL: 1000,  # 16 hours + 40 minutes
+    Scenario.SINGLE_MEAL: 1080,  # 18 hours
+    Scenario.ONE_DAY: 1450,  # 24 hours + 10 minutes
+    Scenario.THREE_DAY: 4330,  # 72 hours + 10 minutes
+}
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     ax[0].plot(t, BG)

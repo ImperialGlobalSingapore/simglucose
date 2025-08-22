@@ -18,6 +18,7 @@ class ORefZeroController:
     """
 
     DEFAULT_TIMEZONE = "UTC"
+    MINIMAL_TIMESTEP = 5  # in minutes
 
     def __init__(
         self,
@@ -25,7 +26,6 @@ class ORefZeroController:
         server_url: str = "http://localhost:3000",
         profile: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
-        frequency=5,  # in minutes
     ):
         """
         Initialize the ORefZero controller
@@ -41,6 +41,8 @@ class ORefZeroController:
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
+
+        self.collect_meal = 0
 
         # Patient state tracking
         self.patient_profiles = {}  # patientId -> profile mapping
@@ -319,14 +321,34 @@ class ORefZeroController:
             )
             # return Action(basal=1.0, bolus=0.0)  # Default safe action
             raise ValueError("Forgot to initialise patient.")
-        # Extract glucose level
-        glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
-        # print(glucose_level)
+
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
-        # print("timestamp:", timestamp)
+        previous_timestamp = self.last_glucose_time.get(patient_name)
+
+        # accumulate meal data
+        self.collect_meal += meal
+
+        # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
+        if previous_timestamp is not None and (
+            datetime.fromisoformat(timestamp.rstrip("Z"))
+            < datetime.fromisoformat(previous_timestamp.rstrip("Z"))
+            + timedelta(minutes=self.MINIMAL_TIMESTEP)
+        ):
+            # TODO: check with loopinsight which one is correct
+            # return Action(
+            #     basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
+            # )
+            return Action(basal=0, bolus=0)
+
+        # Extract glucose level
+        glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
+
         # Prepare new data
-        new_data = self._prepare_new_data(patient_name, glucose_level, meal, timestamp)
+        new_data = self._prepare_new_data(
+            patient_name, glucose_level, self.collect_meal, timestamp
+        )
+        self.collect_meal = 0  # Reset after sending
         print(new_data)
         # Prepare calculation request
         calc_data = {
@@ -372,6 +394,7 @@ class ORefZeroController:
 
         # Store the last glucose time
         self.last_glucose_time[patient_name] = timestamp
+        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
 
         return Action(basal=basal_rate, bolus=bolus_amount)
 

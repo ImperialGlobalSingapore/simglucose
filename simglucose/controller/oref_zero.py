@@ -33,10 +33,9 @@ class ORefZeroController:
         Args:
             current_basal: current basal rate
             server_url: URL of the Node.js OpenAPS server
-            patient_profile: Custom patient profile, uses default if None
+            profile: Custom patient profile, uses default if None
             timeout: Request timeout in seconds
         """
-        self.frequency = frequency
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
@@ -298,6 +297,7 @@ class ORefZeroController:
         patient_name: str,
         meal: float,
         time,
+        use_autosens: bool = False,
     ) -> Action:
         """
         Get insulin dosage recommendation from OpenAPS server
@@ -309,6 +309,7 @@ class ORefZeroController:
             patient_name: Unique patient identifier
             meal: Carbohydrate amount in grams
             time: Current simulation time
+            use_autosens: Whether to use the autosens endpoint
 
         Returns:
             CtrlAction with basal and bolus insulin recommendations
@@ -362,9 +363,12 @@ class ORefZeroController:
         }
 
         # Make calculation request
-        response = self._make_request(
-            "POST", f"/patients/{patient_name}/calculate", calc_data
-        )
+        if use_autosens:
+            endpoint = f"/patients/{patient_name}/autosens"
+        else:
+            endpoint = f"/patients/{patient_name}/calculate"
+
+        response = self._make_request("POST", endpoint, calc_data)
         print(response["suggestion"])
         # Extract recommendation
         suggestion = response.get("suggestion", {})

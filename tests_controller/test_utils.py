@@ -23,8 +23,11 @@ class Scenario(Enum):
         """
         t: time in minutes
         body_weight: weight of the patient in kg
+        Returns carbs only at exact meal times, 0 otherwise
         """
-        default_carb_duration = 15  # hour = 15 minutes
+        # Force t to int for exact time matching
+        t = int(t)
+        
         carb_times_in_hour = {
             Scenario.NO_MEAL: [],
             Scenario.SINGLE_MEAL: [6],  # Assuming a meal at 6:00
@@ -58,16 +61,12 @@ class Scenario(Enum):
                 0.8 * body_weight,
             ] * 3
 
-        carb_time_range = (
-            np.array(carb_times_in_hour[self]) * 60
-        )  # Convert hours to minutes
-        carb_time_range = np.vstack(
-            (carb_time_range, carb_time_range + default_carb_duration)
-        ).T
-        find_within = carb_time_range - t > 0
-        find_within = find_within[:, 0] ^ find_within[:, 1]
-        if np.any(find_within):
-            idx = np.where(find_within)[0][0]
+        # Convert hours to minutes for comparison
+        carb_times_in_minutes = [h * 60 for h in carb_times_in_hour[self]]
+        
+        # Check if current time matches any meal time exactly
+        if t in carb_times_in_minutes:
+            idx = carb_times_in_minutes.index(t)
             return carb_amounts[self][idx]
         return 0
 
@@ -159,14 +158,21 @@ def get_patient_by_group(patient_type: str):
 
 
 if __name__ == "__main__":
-    print(Scenario.THREE_DAY.get_carb(60, 70))
-    print(Scenario.ONE_DAY.get_carb(60, 70))
-    print(Scenario.SINGLE_MEAL.get_carb(60, 70))
-    print(Scenario.NO_MEAL.get_carb(60, 70))
-
-    print(Scenario.NO_MEAL.get_carb(365, 70))
-    print(Scenario.SINGLE_MEAL.get_carb(365, 70))
-    print(Scenario.ONE_DAY.get_carb(425, 70))
-    print(Scenario.THREE_DAY.get_carb(425, 70))
-    print(Scenario.ONE_DAY.get_carb(425))
-    print(Scenario.THREE_DAY.get_carb(425))
+    # Test exact meal times
+    print("Testing exact meal times:")
+    print(f"NO_MEAL at 420min (7:00): {Scenario.NO_MEAL.get_carb(420, 70)}")  # Should be 0
+    print(f"SINGLE_MEAL at 360min (6:00): {Scenario.SINGLE_MEAL.get_carb(360, 70)}")  # Should be 50
+    print(f"ONE_DAY at 420min (7:00): {Scenario.ONE_DAY.get_carb(420, 70)}")  # Should be 0.5*70=35
+    print(f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720, 70)}")  # Should be 0.8*70=56
+    print(f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140, 70)}")  # Should be 0.8*70=56
+    print(f"THREE_DAY at 420min (7:00 day 1): {Scenario.THREE_DAY.get_carb(420, 70)}")  # Should be 0.5*70=35
+    
+    print("\nTesting non-meal times (should all return 0):")
+    print(f"SINGLE_MEAL at 365min: {Scenario.SINGLE_MEAL.get_carb(365)}")  # Should be 0
+    print(f"ONE_DAY at 425min: {Scenario.ONE_DAY.get_carb(425)}")  # Should be 0
+    print(f"THREE_DAY at 425min: {Scenario.THREE_DAY.get_carb(425)}")  # Should be 0
+    
+    print("\nTesting without body_weight:")
+    print(f"ONE_DAY at 420min (7:00): {Scenario.ONE_DAY.get_carb(420)}")  # Should be 40
+    print(f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720)}")  # Should be 50
+    print(f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140)}")  # Should be 70

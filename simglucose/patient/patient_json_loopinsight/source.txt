@@ -1,0 +1,57 @@
+{
+      "type": "patient",
+      "model": "UvaPadova_T1DMS",
+      "version": "2.1.0",
+      "created": "2025-08-22T06:12:17.727Z",
+      "description": "Created from simglucose adolescent#003 patient parameters",
+      "parameters": {
+          "name": "adolescent#003",  // From patient Name field
+          "Gpeq": 145.9,  // From Gb (basal glucose concentration in mg/dL)
+          "BW": 44.791,  // From BW (body weight in kg)
+          "CR": 10,  // From profile carb_ratio (not in patient params, using profile default)
+          "VG": 2.2382,  // From Vg (distribution volume of glucose in dL/kg)
+          "k1": 0.10004,  // From k1 (glucose kinetics rate parameter in min^-1)
+          "k2": 0.080467,  // From k2 (glucose kinetics rate parameter in min^-1)
+          "VI": 0.034438,  // From Vi (distribution volume of insulin in L/kg)
+          "m1": 0.10962,  // From m1 (insulin kinetics rate parameter in min^-1)
+          "m2": 0.414654673732,  // From m2 (insulin kinetics rate parameter in min^-1)
+          "m4": 0.165861869493,  // From m4 (peripheral insulin degradation rate in min^-1)
+          "HEeq": 0.6,  // From HEb (hepatic extraction of insulin, dimensionless)
+          "kmax": 0.046773,  // From kmax (max rate of appearance in min^-1)
+          "kmin": 0.0066262,  // From kmin (min rate of appearance in min^-1)
+          "kabs": 0.046752,  // From kabs (intestinal absorption rate in min^-1)
+          "kgri": 0.046773,  // Using kmax value (glucose rate of intestinal absorption)
+          "bmeal": 0.56424,  // From b (rate of appearance parameter, dimensionless)
+          "cmeal": 0.14423,  // From d (rate of appearance parameter, dimensionless)
+          "f": 0.9,  // From f (fraction of intestinal absorption, dimensionless)
+          "kp1": 6.58878876028,  // From kp1 (EGP extrapolated at zero glucose/insulin in mg/kg/min)
+          "kp2": 0.0060918,  // From kp2 (liver glucose effectiveness in min^-1)
+          "kp3": 0.017571,  // From kp3 (hepatic insulin action parameter in mg/kg/min per pmol/L)
+          "kp4": 0.065784,  // From p2u (peripheral insulin utilization parameter in min^-1)
+          "ki": 0.0094229,  // From ki (delay between insulin signal and action in mg/kg/min)
+          "Fcns": 1,  // From Fsnc (CNS glucose utilization in mg/kg/min)
+          "Vm0": 2.84798631515,  // From Vm0 (max utilization at basal insulin in mg/kg/min)
+          "Vmx": 0.060762,  // From Vmx (peripheral insulin action parameter in mg/kg/min per pmol/L)
+          "Km0": 216.57,  // From Km0 (utilization parameter in mg/kg)
+          "p2u": 0.065784,  // From p2u (utilization parameter in min^-1)
+          "ke1": 0.0005,  // From ke1 (renal excretion parameter in min^-1)
+          "ke2": 339,  // From ke2 (renal excretion threshold in mg/kg)
+          "ka1": 0.003,  // From ka1 (subcutaneous insulin absorption rate in min^-1)
+          "ka2": 0.0148,  // From ka2 (subcutaneous insulin absorption rate in min^-1)
+          "kd": 0.0149,  // From kd (subcutaneous insulin diffusion rate in min^-1)
+          "Td": 10,  // Default value (not in patient params - time delay parameter)
+          "kGSRs": 0.1059,  // From ksc (subcutaneous glucose kinetics in min^-1)
+          "rho": 0.5,  // Default value (not in patient params - glucose sensor parameter)
+          "delta": 0.1,  // Default value (not in patient params - glucose sensor parameter)
+          "kh1": 0.02,  // Default value (not in patient params - hepatic glucose parameter)
+          "kh2": 0.02,  // Default value (not in patient params - hepatic glucose parameter)
+          "kh3": 0.2,  // Default value (not in patient params - hepatic glucose parameter)
+          "kxi": 0.01,  // Default value (not in patient params - exercise parameter)
+          "Hb": 60,  // Default value (not in patient params - hepatic glucose threshold)
+          "kh": 0.1,  // Default value (not in patient params - hepatic rate constant)
+          "nH": 0.2,  // Default value (not in patient params - Hill coefficient)
+          "ralpha": 1.084,  // Default value (not in patient params - glucose sensor parameter)
+          "rbeta": 5.381,  // Default value (not in patient params - glucose sensor parameter)
+          "rgamma": 1.509  // Default value (not in patient params - glucose sensor parameter)
+      }
+  }

@@ -265,8 +265,8 @@ class ORefZeroController:
 
         # Add carb entry if we have a meal
         if meal > 0:
-            carb_entry = {
-                "timestamp": timestamp,
+            carb_entry = {  # FIX
+                "created_at": timestamp,
                 "carbs": meal,
                 "enteredBy": "controller",
             }

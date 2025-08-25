@@ -32,11 +32,7 @@ def patient_oref0(
     patient_name="adolescent#003",
     scenario=Scenario.NO_MEAL,
     save_fig=False,
-    use_autosens=False,
 ):
-    if use_autosens:
-        scenario = Scenario.ONE_DAY  # Autosens requires at least one day of data
-        print("scenario is set to ONE_DAY, since use_autosens is True")
 
     p = T1DMPatient.withName(patient_name)
     ctrl = ORefZeroController(current_basal=p.basal, timeout=30000)
@@ -67,7 +63,6 @@ def patient_oref0(
             patient_name=patient_name,
             meal=carb,
             time=p.t,
-            use_autosens=use_autosens,
         )
 
         ins = ctrl_action.basal + ctrl_action.bolus
@@ -92,5 +87,5 @@ def patient_oref0(
 
 if __name__ == "__main__":
     # test to get the default profile
-    patient_oref0(save_fig=True, use_autosens=False)
-    # patient_oref0(save_fig=True, use_autosens=False, scenario=Scenario.SINGLE_MEAL)
+    patient_oref0(save_fig=True)
+    # patient_oref0(save_fig=True, scenario=Scenario.SINGLE_MEAL)

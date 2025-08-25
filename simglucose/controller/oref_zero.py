@@ -297,7 +297,6 @@ class ORefZeroController:
         patient_name: str,
         meal: float,
         time,
-        use_autosens: bool = False,
     ) -> Action:
         """
         Get insulin dosage recommendation from OpenAPS server
@@ -309,7 +308,6 @@ class ORefZeroController:
             patient_name: Unique patient identifier
             meal: Carbohydrate amount in grams
             time: Current simulation time
-            use_autosens: Whether to use the autosens endpoint
 
         Returns:
             CtrlAction with basal and bolus insulin recommendations
@@ -363,11 +361,7 @@ class ORefZeroController:
         }
 
         # Make calculation request
-        if use_autosens:
-            endpoint = f"/patients/{patient_name}/autosens"
-        else:
-            endpoint = f"/patients/{patient_name}/calculate"
-
+        endpoint = f"/patients/{patient_name}/calculate"
         response = self._make_request("POST", endpoint, calc_data)
         print(response["suggestion"])
         # Extract recommendation

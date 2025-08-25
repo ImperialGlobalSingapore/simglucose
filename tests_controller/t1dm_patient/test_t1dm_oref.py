@@ -35,7 +35,7 @@ def patient_oref0(
 ):
 
     p = T1DMPatient.withName(patient_name)
-    ctrl = ORefZeroController(current_basal=p.basal, timeout=30000)
+    ctrl = ORefZeroController(current_basal=p.basal * 60, timeout=30000)  # U/min to U/h
     # ctrl = ORefZeroController(current_basal=p.basal, timeout=30000)
     t = []
     CHO = []
@@ -87,5 +87,21 @@ def patient_oref0(
 
 if __name__ == "__main__":
     # test to get the default profile
-    patient_oref0(save_fig=True)
-    # patient_oref0(save_fig=True, scenario=Scenario.SINGLE_MEAL)
+    # patient_oref0(save_fig=True)
+    patient_groups = [
+        PatientType.ADOLESCENT.value,
+        PatientType.ADULT.value,
+        PatientType.CHILD.value,
+    ]
+    patients = []
+    for group in patient_groups:
+        group_patients = get_patient_by_group(group)
+        if group_patients:
+            patients.extend(group_patients)
+
+    for patient_name in patients:
+        patient_oref0(
+            patient_name=patient_name,
+            save_fig=True,
+            scenario=Scenario.SINGLE_MEAL,
+        )

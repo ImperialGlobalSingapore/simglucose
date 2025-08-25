@@ -54,88 +54,18 @@ class ORefZeroController:
         # TODO: verify the parameters with loopinsight
         self.default_profile = profile or {
             "current_basal": current_basal,  # Current basal rate in U/h
-            # Safety parameters, commonly adjusted
-            "max_iob": 6,  # Maximum insulin on board allowed (0 = no limit enforced by OpenAPS)
             "sens": 50,  #  # Insulin Sensitivity Factor (ISF): The number of mg/dL that blood glucose is expected to drop per unit of insulin. This is a primary parameter for all dosing calculations.
-            "carb_ratio": 10,  # Carb Ratio (g/U): The number of grams of carbohydrates covered by 1 unit of insulin. Critical for meal bolus calculations.
             "dia": 6,  # Duration of Insulin Action in hours - how long insulin remains active in the body
-            "max_daily_safety_multiplier": 3,  # Limits daily insulin to 3x the max daily basal
-            "current_basal_safety_multiplier": 4,  # Limits current temp basal to 4x current scheduled basal
-            # ISF Profile - Insulin Sensitivity Factor
-            "isfProfile": {
-                "units": "mg/dL",
-                "user_preferred_units": "mg/dL",
-                "first": 1,
-                "sensitivities": [
-                    {
-                        "i": 0,
-                        "start": "00:00:00",
-                        "sensitivity": 50,  # Adjust based on patient - 50 mg/dL drop per unit
-                        "offset": 0,
-                        "x": 0,
-                        "endOffset": 1440,
-                    }
-                ],
-            },
-            # Blood glucose targets
-            "min_bg": 120,  # Lower target - algorithm actively tries to stay above this
-            "max_bg": 120,  # Upper target - less actively used by default
-            # Autosens parameters
-            "autosens_max": 1.2,  # Maximum autosens ratio (20% increase in sensitivity)
-            "autosens_min": 0.7,  # Minimum autosens ratio (30% decrease in sensitivity)
-            "rewind_resets_autosens": True,  # Reset autosens to neutral after pump rewind
+            "carb_ratio": 10,  # Carb Ratio (g/U): The number of grams of carbohydrates covered by 1 unit of insulin. Critical for meal bolus calculations.
+            "max_iob": 6,  # Maximum insulin on board allowed (0 = no limit enforced by OpenAPS)
+            "max_basal": 3.5,  # Maximum temporary basal rate in U/h
             "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day (used for autosens calculations)
-            # Temp target adjustments
-            "high_temptarget_raises_sensitivity": False,  # Don't raise sensitivity for high temp targets
-            "low_temptarget_lowers_sensitivity": False,  # Don't lower sensitivity for low temp targets
-            "sensitivity_raises_target": True,  # Raise BG target when autosens detects sensitivity
-            "resistance_lowers_target": False,  # Don't lower BG target when autosens detects resistance
-            "exercise_mode": False,  # Disable exercise mode adjustments
-            "half_basal_exercise_target": 160,  # Exercise target threshold (not used when exercise_mode=False)
-            # Carb absorption parameters
+            "max_bg": 120,  # Upper target - less actively used by default
+            "min_bg": 120,  # Lower target - algorithm actively tries to stay above this
             "maxCOB": 120,  # Maximum carbs on board (safety limit)
-            "min_5m_carbimpact": 8.0,  # Minimum carb absorption rate (8 mg/dL per 5 minutes)
-            "remainingCarbsFraction": 1.0,  # Assume all carbs will absorb over 4h
-            "remainingCarbsCap": 90,  # Max carbs assumed to absorb over 4h
-            # Temp basal behavior
-            "skip_neutral_temps": False,  # Set neutral temps when appropriate
-            "unsuspend_if_no_temp": False,  # Don't auto-unsuspend after zero temp
-            # Bolus parameters
-            "bolussnooze_dia_divisor": 2,  # Bolus snooze decays after 1/2 of DIA
-            "bolus_increment": 0.1,  # Minimum bolus increment
-            # Autotune parameters
-            "autotune_isf_adjustmentFraction": 1.0,  # Allow full ISF adjustment from autotune
-            # UAM (Unannounced Meal) - enabled but SMB disabled
-            "enableUAM": True,  # Enable unannounced meal detection
-            "A52_risk_enable": False,  # Disable A52 risk model
-            # SMB (Super Micro Bolus) - ALL DISABLED
-            "enableSMB_always": False,  # Never enable SMB automatically
-            "enableSMB_with_bolus": False,  # Don't enable SMB with bolus
-            "enableSMB_with_COB": False,  # Don't enable SMB with carbs on board
-            "enableSMB_with_temptarget": False,  # Don't enable SMB with temp targets
-            "enableSMB_after_carbs": False,  # Don't enable SMB after carbs
-            "enableSMB_high_bg": False,  # Don't enable SMB for high BG
-            "enableSMB_high_bg_target": 110,  # High BG threshold (not used when SMB disabled)
-            "allowSMB_with_high_temptarget": False,  # Don't allow SMB with high temp targets
-            "maxSMBBasalMinutes": 30,  # Max SMB size (not used when SMB disabled)
-            "maxUAMSMBBasalMinutes": 30,  # Max UAM SMB size (not used when SMB disabled)
-            "SMBInterval": 3,  # Minimum interval between SMBs (not used when SMB disabled)
-            "maxDelta_bg_threshold": 0.2,  # Max BG change threshold for SMB
-            # Insulin curve
-            "curve": "rapid-acting",  # Use rapid-acting insulin curve
-            "useCustomPeakTime": False,  # Use default peak time
-            "insulinPeakTime": 75,  # Peak time in minutes (not used when useCustomPeakTime=False)
-            # Miscellaneous
-            "carbsReqThreshold": 1,  # Threshold for carb requirement notifications
-            "noisyCGMTargetMultiplier": 1.3,  # Multiply target by 1.3 for noisy CGM data
-            "suspend_zeros_iob": True,  # Treat pump suspends as zero insulin delivery
-            "calc_glucose_noise": False,  # Don't calculate glucose noise
-            "target_bg": False,  # Don't override pump's min_bg setting
-            # Device-specific (not relevant for simulation)
-            "offline_hotspot": False,
-            "enableEnliteBgproxy": False,
-            "edison_battery_shutdown_voltage": 3050,
-            "pi_battery_shutdown_percent": 2,
+            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
+            "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate (12 mg/dL per 5 minutes)
+            "type": "current",  # Profile type
         }
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
@@ -174,7 +104,7 @@ class ORefZeroController:
             logger.error(
                 f"HTTP error {e.response.status_code} for {url}: {e.response.text}"
             )
-            raise Exception(f"Server returned error: {e.response.status_code}")
+
         except Exception as e:
             logger.error(f"Unexpected error for {url}: {str(e)}")
             raise
@@ -356,7 +286,6 @@ class ORefZeroController:
             "options": {
                 "microbolus": False,  # Disable, since oref0 doesn't support microbolus, though it might be available in the future for oref1
                 "overrideProfile": {},  # Could be used for temporary profile changes
-                "autosens": {"ratio": 1.0},  # No adjustment
             },
         }
 
@@ -366,7 +295,7 @@ class ORefZeroController:
         print(response["suggestion"])
         # Extract recommendation
         suggestion = response.get("suggestion", {})
-        basal_rate = suggestion.get("rate", 0.0) / 60  # U/h -> U/min
+        basal_rate = response.get("IIR", 0.0) / 60  # U/h -> U/min
 
         # Calculate bolus recommendation
         # OpenAPS typically provides basal adjustments, bolus calculation

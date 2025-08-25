@@ -89,7 +89,7 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     ax[1].set_ylabel("CHO (g)")
     ax[2].plot(t, insulin)
     ax[2].grid()
-    ax[2].set_ylabel("Insulin (pmol/kg/min)")
+    ax[2].set_ylabel("Insulin (U/min)")
     ax[2].set_xlabel("Time (min)")
     fig.subplots_adjust(bottom=0.15)
     fig.legend(loc="lower center", ncol=3)

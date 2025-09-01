@@ -52,21 +52,25 @@ class ORefZeroController:
 
         # Store the required profile
         # TODO: verify the parameters with loopinsight
-        self.default_profile = profile or {
+        # Set default profile, but override defaults with any keys present in 'profile'
+        base_profile = {
             "current_basal": current_basal,  # Current basal rate in U/h
-            "sens": 50,  #  # Insulin Sensitivity Factor (ISF): The number of mg/dL that blood glucose is expected to drop per unit of insulin. This is a primary parameter for all dosing calculations.
-            "dia": 6,  # Duration of Insulin Action in hours - how long insulin remains active in the body
-            "carb_ratio": 10,  # Carb Ratio (g/U): The number of grams of carbohydrates covered by 1 unit of insulin. Critical for meal bolus calculations.
-            "max_iob": 6,  # Maximum insulin on board allowed (0 = no limit enforced by OpenAPS)
+            "sens": 50,  # Insulin Sensitivity Factor (ISF)
+            "dia": 6,  # Duration of Insulin Action in hours
+            "carb_ratio": 10,  # Carb Ratio (g/U)
+            "max_iob": 6,  # Maximum insulin on board allowed
             "max_basal": 3.5,  # Maximum temporary basal rate in U/h
-            "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day (used for autosens calculations)
-            "max_bg": 120,  # Upper target - less actively used by default
-            "min_bg": 120,  # Lower target - algorithm actively tries to stay above this
-            "maxCOB": 120,  # Maximum carbs on board (safety limit)
+            "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day
+            "max_bg": 120,  # Upper target
+            "min_bg": 120,  # Lower target
+            "maxCOB": 120,  # Maximum carbs on board
             "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
-            "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate (12 mg/dL per 5 minutes)
+            "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
             "type": "current",  # Profile type
         }
+        if profile:
+            base_profile.update(profile)
+        self.default_profile = base_profile
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 

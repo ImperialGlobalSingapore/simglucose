@@ -70,12 +70,14 @@ class Scenario(Enum):
             return carb_amounts[self][idx]
         return 0
 
+
 max_t = {
     Scenario.NO_MEAL: 1000,  # 16 hours + 40 minutes
     Scenario.SINGLE_MEAL: 1080,  # 18 hours
     Scenario.ONE_DAY: 1450,  # 24 hours + 10 minutes
     Scenario.THREE_DAY: 4330,  # 72 hours + 10 minutes
 }
+
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     ax[0].plot(t, BG)
@@ -154,31 +156,47 @@ def get_patients():
     return patient_params.Name.tolist()
 
 
-def get_patient_by_group(patient_type: str):
-    if patient_type == PatientType.ADOLESCENT.value:
+def get_patient_by_group(patient_type: PatientType):
+    if patient_type == PatientType.ADOLESCENT:
         return [f"adolescent#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.ADULT.value:
+    elif patient_type == PatientType.ADULT:
         return [f"adult#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.CHILD.value:
+    elif patient_type == PatientType.CHILD:
         return [f"child#00{i}" for i in range(1, 10)]
 
 
 if __name__ == "__main__":
     # Test exact meal times
     print("Testing exact meal times:")
-    print(f"NO_MEAL at 420min (7:00): {Scenario.NO_MEAL.get_carb(420, 70)}")  # Should be 0
-    print(f"SINGLE_MEAL at 360min (6:00): {Scenario.SINGLE_MEAL.get_carb(360, 70)}")  # Should be 50
-    print(f"ONE_DAY at 420min (7:00): {Scenario.ONE_DAY.get_carb(420, 70)}")  # Should be 0.5*70=35
-    print(f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720, 70)}")  # Should be 0.8*70=56
-    print(f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140, 70)}")  # Should be 0.8*70=56
-    print(f"THREE_DAY at 420min (7:00 day 1): {Scenario.THREE_DAY.get_carb(420, 70)}")  # Should be 0.5*70=35
-    
+    print(
+        f"NO_MEAL at 420min (7:00): {Scenario.NO_MEAL.get_carb(420, 70)}"
+    )  # Should be 0
+    print(
+        f"SINGLE_MEAL at 360min (6:00): {Scenario.SINGLE_MEAL.get_carb(360, 70)}"
+    )  # Should be 50
+    print(
+        f"ONE_DAY at 420min (7:00): {Scenario.ONE_DAY.get_carb(420, 70)}"
+    )  # Should be 0.5*70=35
+    print(
+        f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720, 70)}"
+    )  # Should be 0.8*70=56
+    print(
+        f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140, 70)}"
+    )  # Should be 0.8*70=56
+    print(
+        f"THREE_DAY at 420min (7:00 day 1): {Scenario.THREE_DAY.get_carb(420, 70)}"
+    )  # Should be 0.5*70=35
+
     print("\nTesting non-meal times (should all return 0):")
     print(f"SINGLE_MEAL at 365min: {Scenario.SINGLE_MEAL.get_carb(365)}")  # Should be 0
     print(f"ONE_DAY at 425min: {Scenario.ONE_DAY.get_carb(425)}")  # Should be 0
     print(f"THREE_DAY at 425min: {Scenario.THREE_DAY.get_carb(425)}")  # Should be 0
-    
+
     print("\nTesting without body_weight:")
     print(f"ONE_DAY at 420min (7:00): {Scenario.ONE_DAY.get_carb(420)}")  # Should be 40
-    print(f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720)}")  # Should be 50
-    print(f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140)}")  # Should be 70
+    print(
+        f"ONE_DAY at 720min (12:00): {Scenario.ONE_DAY.get_carb(720)}"
+    )  # Should be 50
+    print(
+        f"ONE_DAY at 1140min (19:00): {Scenario.ONE_DAY.get_carb(1140)}"
+    )  # Should be 70

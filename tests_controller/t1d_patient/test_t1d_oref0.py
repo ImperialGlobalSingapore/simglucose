@@ -151,9 +151,9 @@ if __name__ == "__main__":
     # Test single meal scenario
 
     patient_groups = [
-        PatientType.ADOLESCENT.value,
-        PatientType.ADULT.value,
-        PatientType.CHILD.value,
+        PatientType.ADOLESCENT,
+        PatientType.ADULT,
+        PatientType.CHILD,
     ]
     patients = []
     for group in patient_groups:

@@ -9,7 +9,7 @@ from test_t1dpatient_pid import (
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import PatientType, get_patient_by_group, Scenario
+from test_utils import PatientType, Scenario
 
 
 class GoodParamCriteria(Enum):
@@ -24,6 +24,15 @@ def get_good_param(lists: list, criteria: GoodParamCriteria):
         return most_common_value
     elif criteria == GoodParamCriteria.MEAN:
         return np.mean(lists)
+
+
+def get_patient_by_group(patient_type: str):
+    if patient_type == PatientType.ADOLESCENT.value:
+        return [f"adolescent#00{i}" for i in range(1, 10)]
+    elif patient_type == PatientType.ADULT.value:
+        return [f"adult#00{i}" for i in range(1, 10)]
+    elif patient_type == PatientType.CHILD.value:
+        return [f"child#00{i}" for i in range(1, 10)]
 
 
 def run_single_meal_params_in_no_meal():

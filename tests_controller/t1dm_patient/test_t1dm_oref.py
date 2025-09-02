@@ -1,4 +1,5 @@
 import csv
+import json
 import logging
 from pathlib import Path
 from collections import namedtuple
@@ -30,16 +31,6 @@ parent_folder = file_path.parent
 
 img_dir = parent_folder / "imgs"
 test_patient_dir = img_dir / "test_oref0"
-# delete all the subdir
-for child in test_patient_dir.glob("*"):
-    if child.is_dir():
-        # remove contents of the directory and dont delete the directory itself
-        for item in child.glob("*"):
-            if item.is_dir():
-                shutil.rmtree(item)
-            else:
-                item.unlink()
-
 
 CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
@@ -48,6 +39,7 @@ def patient_oref0(
     patient_name="adolescent#003",
     img_save_dir=test_patient_dir,
     scenario=Scenario.NO_MEAL,
+    parameter_idx="0",
     profile=None,
     save_fig=False,
 ):
@@ -113,32 +105,47 @@ def patient_oref0(
             time_in_range["low"] += 1
         else:
             time_in_range["very_low"] += 1
+    time_in_range = {k: v / len(t) for k, v in time_in_range.items() if v > 0}
 
-    timestamp = datetime.now()
     sanitized_patient_name = patient_name.replace("#", "_")
-    fig_title = f"test_patient_{sanitized_patient_name}_{scenario.name}_{timestamp.strftime('%Y%m%d_%H%M%S')}"
+    fig_title = f"test_patient_{sanitized_patient_name}_{scenario.name}_param_set_{parameter_idx}"
     if save_fig:
         file_name = img_save_dir / f"{fig_title}.png"
-        plot_and_save(t, BG, CHO, insulin, ctrl.target_bg, file_name)
+        plot_with_scale_and_save(
+            t,
+            BG,
+            CHO,
+            insulin,
+            ctrl.target_bg,
+            time_in_range,
+            file_name,
+        )
 
-    time_in_range = {k: v / len(t) for k, v in time_in_range.items() if v > 0}
-    return time_in_range, timestamp
+    return time_in_range
 
 
 def run_single_patient_test(args):
     """Helper function for parallel execution"""
-    patient_name, profile, scenario_val, img_save_dir = args
+    patient_name, profile, scenario_val, img_save_dir, profile_idx = args
     try:
-        time_in_range, timestamp = patient_oref0(
+        time_in_range = patient_oref0(
             patient_name=patient_name,
             img_save_dir=img_save_dir,
             save_fig=True,
             scenario=scenario_val,
             profile=profile,
+            parameter_idx=profile_idx,
         )
-        return patient_name, args, profile, time_in_range, timestamp
+        return (
+            patient_name,
+            args,
+            profile_idx,
+            profile,
+            scenario_val,
+            time_in_range,
+        )
     except Exception as e:
-        return patient_name, args, profile, str(e), None
+        return patient_name, args, profile_idx, profile, scenario_val, str(e)
 
 
 def run_patient_all_profiles(patient_configs):
@@ -173,8 +180,8 @@ if __name__ == "__main__":
     """
 
     patient_groups = [
-        PatientType.CHILD,
-        PatientType.ADOLESCENT,
+        # PatientType.CHILD,
+        # PatientType.ADOLESCENT,
         PatientType.ADULT,
     ]
 
@@ -305,28 +312,49 @@ if __name__ == "__main__":
         ],
     }
 
+    parameter_group = {
+        0: {"min_bg": 120, "max_bg": 120},
+        1: {"min_bg": 90, "max_bg": 140},
+    }
+
+    combined_profiles = {}
+    for group, profiles in patient_group_profiles.items():
+        combined_profiles[group] = {}
+        for idx, profile in enumerate(profiles):
+            for param_idx, param in parameter_group.items():
+                profile_idx = f"{idx}_{param_idx}"
+                # Merge profile and param, and add an index for identification
+                temp_profile = profile.copy()
+                temp_profile.update(param)
+                combined_profiles[group][profile_idx] = temp_profile
+                # TODO, for quick testing
+                # break
+            # TODO, for quick testing
+            # break
+
+    scenarios = [Scenario.SINGLE_MEAL, Scenario.ONE_DAY, Scenario.THREE_DAY]
+
     # Prepare all test configurations grouped by patient
     patient_configs = {}
     for group in patient_groups:
         patients = get_patient_by_group(group)
-        # patients = patients[:2]  # Limit to first 2 patients for quick testing
+        # TODO:
+        # patients = patients[:1]  # for quick testing
         if patients:
             for patient_name in patients:
                 patient_configs[patient_name] = []
                 # Create patient folder upfront
-                patient_folder = patient_name.replace("#", "_")
-                patient_dir = test_patient_dir / patient_folder
-                patient_dir.mkdir(exist_ok=True, parents=True)
-
-                for profile_idx, profile in enumerate(patient_group_profiles[group]):
-                    patient_configs[patient_name].append(
-                        (
-                            patient_name,
-                            profile,
-                            Scenario.SINGLE_MEAL,
-                            patient_dir,
+                for profile_idx, profile_data in combined_profiles[group].items():
+                    param_folder = f"param_{profile_idx}"
+                    patient_folder = patient_name.replace("#", "_")
+                    patient_dir = test_patient_dir / patient_folder / param_folder
+                    patient_dir.mkdir(exist_ok=True, parents=True)
+                    print(f"Created directory: {patient_dir}")
+                    for sc in scenarios:
+                        patient_configs[patient_name].append(
+                            (patient_name, profile_data, sc, patient_dir, profile_idx)
                         )
-                    )
+        break
 
     # Calculate total configurations
     total_configs = sum(len(configs) for configs in patient_configs.values())
@@ -338,6 +366,7 @@ if __name__ == "__main__":
     print(f"Using {min(multiprocessing.cpu_count(), len(patient_configs))} CPU cores\n")
 
     results_list = []  # Initialize results_list before the loop
+    profile_keys = [k for k in patient_group_profiles[PatientType.CHILD][0].keys()]
 
     with ProcessPoolExecutor(
         max_workers=min(multiprocessing.cpu_count(), len(patient_configs))
@@ -356,16 +385,17 @@ if __name__ == "__main__":
             for result in patient_results:
                 print(result)
                 # Parse result string for status and patient/postfix
-                if isinstance(result, tuple) and len(result) == 5:
-                    # result is (patient_name, args, profile, time_in_range, timestamp)
-                    # or (patient_name, args, profile, str(e), None)
+                if isinstance(result, tuple) and len(result) == 6:
+                    # result is (patient_name, args, profile_idx, profile, scenario_val, time_in_range)
+                    # or (patient_name, args, profile_idx, profile, scenario_val, str(e))
                     patient_name = result[0]
                     args = result[1]
-                    profile = result[2]
-                    time_in_range = result[3]
-                    timestamp = result[4]
+                    profile_idx = result[2]
+                    profile = result[3]
+                    scenario_val = result[4]
+                    time_in_range = result[5]
 
-                    if timestamp is None:
+                    if isinstance(time_in_range, str):
                         status = "Failed"
                         error_msg = f"Error: {time_in_range}"
                         time_in_range = None
@@ -376,14 +406,26 @@ if __name__ == "__main__":
                     status = "Failed"
                     patient_name = result[0] if len(result) > 0 else "Unknown"
                     profile = f"Error: Unexpected result format"
+                    error_msg = "Error: Unexpected result format"
+                    scenario_val = None
                     time_in_range = None
-                    timestamp = None
 
-                results_list.append(
+                # Build result dict with profile keys
+                result_dict = {"patient_name": patient_name}
+
+                # Add profile keys - use profile values if completed, None if failed
+                if status == "Completed" and isinstance(profile, dict):
+                    for key in profile_keys:
+                        result_dict[key] = profile.get(key)
+                else:
+                    for key in profile_keys:
+                        result_dict[key] = None
+
+                # Add remaining fields
+                result_dict.update(
                     {
-                        "patient_name": patient_name,
-                        "profile": profile if status == "Completed" else error_msg,
-                        "status": status,
+                        "scenario": scenario_val.name if scenario_val else None,
+                        "error_msg": error_msg if status == "Failed" else None,
                         "very_high": (
                             time_in_range.get("very_high") if time_in_range else None
                         ),
@@ -395,32 +437,61 @@ if __name__ == "__main__":
                         "very_low": (
                             time_in_range.get("very_low") if time_in_range else None
                         ),
-                        "timestamp": timestamp,
+                        "status": status,
                     }
                 )
+
+                results_list.append(result_dict)
+
     print(f"\n✅ All tests completed!")
 
     # Save results to CSV
+    filednames = [
+        "patient_name",
+        *profile_keys,
+        "scenario",
+        "error_msg",
+        "very_high",
+        "high",
+        "target",
+        "low",
+        "very_low",
+        "status",
+    ]
+
+    # Save to CSV
     try:
-        csv_file = parent_folder / "test_results.csv"
+        csv_file = test_patient_dir / "test_results.csv"
         with open(csv_file, "w", newline="") as f:
-            writer = csv.DictWriter(
-                f,
-                fieldnames=[
-                    "patient_name",
-                    "profile",
-                    "status",
-                    "very_high",
-                    "high",
-                    "target",
-                    "low",
-                    "very_low",
-                    "timestamp",
-                ],
-            )
+            writer = csv.DictWriter(f, fieldnames=filednames)
             writer.writeheader()
             for row in results_list:
                 writer.writerow(row)
         print(f"\n✅ Results saved to {csv_file}")
     except Exception as e:
         print(f"Error saving results to CSV: {e}")
+        try:
+            error_log_file = test_patient_dir / "error_log.txt"
+            with open(error_log_file, "a") as ef:
+                ef.write(f"{datetime.now()}: Error saving results to CSV: {e}\n")
+            print(f"CSV error logged to {error_log_file}")
+        except Exception as log_error:
+            print(f"Error writing to log file: {log_error}")
+
+    # Always save to JSON as well
+    try:
+        json_file = test_patient_dir / "test_results.json"
+        with open(json_file, "w") as f:
+            json.dump(results_list, f, indent=2, default=str)
+        print(f"✅ Results saved to {json_file} (JSON backup)")
+    except Exception as json_error:
+        print(f"Error saving results to JSON: {json_error}")
+        try:
+            error_log_file = test_patient_dir / "error_log.txt"
+            with open(error_log_file, "a") as ef:
+                ef.write(
+                    f"{datetime.now()}: Error saving results to JSON: {json_error}\n"
+                )
+            print(f"JSON error logged to {error_log_file}")
+        except Exception as log_error:
+            print(f"Error writing to log file: {log_error}")

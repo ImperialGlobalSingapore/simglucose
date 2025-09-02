@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 
 from simglucose.patient.t1dpatient import PATIENT_PARA_FILE
+from matplotlib import gridspec
 
 
 class PatientType(Enum):
@@ -96,6 +97,7 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     fig.subplots_adjust(bottom=0.15)
     fig.legend(loc="lower center", ncol=3)
     fig.suptitle(f"PID Controller: {fig_title}")
+    fig.tight_layout()
 
 
 def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title):
@@ -112,6 +114,126 @@ def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
     fig_title = Path(file_name).stem
     fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
     _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title)
+    fig.savefig(f"{file_name}")
+    plt.close(fig)
+
+
+def plot_with_scale_and_save(t, BG, CHO, insulin, target_BG, time_in_range, file_name):
+    fig_title = Path(file_name).stem
+    fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
+    # Create a new grid with an extra column for the scale bar
+    fig.clf()
+    gs = gridspec.GridSpec(
+        3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.05
+    )
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
+    ax2 = fig.add_subplot(gs[2, 0], sharex=ax0)
+    scale_ax = fig.add_subplot(gs[:, 1])
+
+    # Plot the main data
+    axes = [ax0, ax1, ax2]
+    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+
+    # Configure scale bar with new color scheme and drawing logic
+    scale_ax.axis("off")
+
+    # Define colors for each range category
+    colors = {
+        "very_high": "#FF6B35",
+        "high": "#FFB347",
+        "target": "#32CE13",
+        "low": "#DB2020",
+        "very_low": "#8B0000",
+    }
+
+    # Create vertical stacked bar
+    x_position = 0
+    bar_width = 0.8
+    bottom = 0
+
+    # Define order (bottom to top)
+    order = ["very_low", "low", "target", "high", "very_high"]
+
+    # Draw each segment in specified order
+    for key in order:
+        if key in time_in_range:
+            percentage = time_in_range[key] * 100  # Convert to percentage
+            if (
+                percentage > 0 and key in colors
+            ):  # Only draw if percentage > 0 and color exists
+                scale_ax.bar(
+                    x_position,
+                    percentage,
+                    bottom=bottom,
+                    width=bar_width,
+                    color=colors[key],
+                    edgecolor="white",
+                    linewidth=1,
+                )
+
+                # Add text label (option 1: centered inside bar segment)
+                scale_ax.text(
+                    x_position,
+                    bottom + percentage / 2,
+                    f"{percentage:.1f}%",
+                    ha="center",
+                    va="center",
+                    color="white",
+                    fontweight="bold",
+                    fontsize=10,
+                )
+
+                bottom += percentage
+
+    # Add threshold labels at boundaries between sections
+    thresholds = {
+        "very_low": 0,  # Starting point
+        "low": 54,  # Between very_low and low
+        "target": 70,  # Between low and target
+        "high": 180,  # Between target and high
+        "very_high": 250,  # Between high and very_high
+    }
+
+    # Calculate cumulative heights for positioning
+    cumulative_height = 0
+    for key in order:
+        if key in time_in_range:
+            percentage = time_in_range[key] * 100
+            if percentage > 0:
+                # Add threshold label at the bottom of this section
+                if key != "very_low":  # Don't show 0 at the bottom
+                    scale_ax.text(
+                        x_position - bar_width / 2 - 0.1,
+                        cumulative_height,
+                        f"{thresholds[key]}",
+                        ha="right",
+                        va="center",
+                        fontsize=8,
+                        color="black",
+                    )
+                cumulative_height += percentage
+
+                # Add top edge threshold for this section
+                next_key_index = order.index(key) + 1
+                if next_key_index < len(order):
+                    next_key = order[next_key_index]
+                    # Always show the threshold, regardless of whether next section exists
+                    scale_ax.text(
+                        x_position - bar_width / 2 - 0.1,
+                        cumulative_height,
+                        f"{thresholds[next_key]}",
+                        ha="right",
+                        va="center",
+                        fontsize=8,
+                        color="black",
+                    )
+
+    # Set axis limits for vertical bar
+    scale_ax.set_xlim(-0.5, 0.5)
+    scale_ax.set_ylim(0, 100)
+    scale_ax.set_title("Time in Range", fontsize=12)
+
     fig.savefig(f"{file_name}")
     plt.close(fig)
 

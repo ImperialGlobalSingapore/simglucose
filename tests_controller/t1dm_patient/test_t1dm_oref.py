@@ -126,7 +126,7 @@ def patient_oref0(
 
 def run_single_patient_test(args):
     """Helper function for parallel execution"""
-    patient_name, profile, scenario_val, img_save_dir, profile_idx = args
+    patient_name, profile, scenario_val, img_save_dir, parameter_idx = args
     try:
         time_in_range = patient_oref0(
             patient_name=patient_name,
@@ -134,18 +134,18 @@ def run_single_patient_test(args):
             save_fig=True,
             scenario=scenario_val,
             profile=profile,
-            parameter_idx=profile_idx,
+            parameter_idx=parameter_idx,
         )
         return (
             patient_name,
-            args,
-            profile_idx,
             profile,
             scenario_val,
+            img_save_dir,
+            parameter_idx,
             time_in_range,
         )
     except Exception as e:
-        return patient_name, args, profile_idx, profile, scenario_val, str(e)
+        return patient_name, profile, scenario_val, img_save_dir, parameter_idx, str(e)
 
 
 def run_patient_all_profiles(patient_configs):
@@ -155,6 +155,143 @@ def run_patient_all_profiles(patient_configs):
         result = run_single_patient_test(config)
         results.append(result)
     return results
+
+
+def execute_tests_and_process_results(
+    patient_configs_dict, profile_keys, is_retry=False
+):
+    """
+    Execute tests in parallel and process results.
+
+    Args:
+        patient_configs_dict: Dictionary mapping patient names to their config lists
+        profile_keys: List of profile keys for result dictionaries
+        is_retry: Boolean indicating if this is a retry execution
+
+    Returns:
+        tuple: (results_list, failed_configs)
+    """
+    results_list = []
+    failed_configs = {}
+
+    with ProcessPoolExecutor(
+        max_workers=min(multiprocessing.cpu_count(), len(patient_configs_dict))
+    ) as executor:
+        futures = [
+            executor.submit(run_patient_all_profiles, configs)
+            for patient_name, configs in patient_configs_dict.items()
+        ]
+
+        for future in as_completed(futures):
+            patient_results = future.result()
+
+            for result in patient_results:
+                if not is_retry:
+                    print(result)
+
+                if isinstance(result, tuple) and len(result) == 6:
+                    patient_name = result[0]
+                    profile = result[1]
+                    scenario_val = result[2]
+                    img_save_dir = result[3]
+                    parameter_idx = result[4]
+                    time_in_range = result[5]
+
+                    if isinstance(time_in_range, str):
+                        if is_retry:
+                            status = "Failed_After_Retry"
+                            error_msg = f"Retry failed: {time_in_range}"
+                            print(
+                                f"  ❌ {patient_name} (param {parameter_idx}) - Still failing after retry"
+                            )
+                        else:
+                            status = "Failed"
+                            error_msg = f"Error: {time_in_range}"
+                        time_in_range = None
+
+                        # Add to failed configs for potential retry
+                        if not is_retry:  # Only collect failed configs on first run
+                            if patient_name not in failed_configs:
+                                failed_configs[patient_name] = []
+                            failed_configs[patient_name].append(
+                                (
+                                    patient_name,
+                                    profile,
+                                    scenario_val,
+                                    img_save_dir,
+                                    parameter_idx,
+                                )
+                            )
+                    else:
+                        if is_retry:
+                            status = "Completed_On_Retry"
+                            print(
+                                f"  ✅ {patient_name} (param {parameter_idx}) - Succeeded on retry"
+                            )
+                        else:
+                            status = "Completed"
+                        error_msg = None
+                else:
+                    # Unexpected result format
+                    status = "Failed_After_Retry" if is_retry else "Failed"
+                    patient_name = result[0] if len(result) > 0 else None
+                    profile = result[1] if len(result) > 1 else None
+                    scenario_val = result[2] if len(result) > 2 else None
+                    img_save_dir = result[3] if len(result) > 3 else None
+                    parameter_idx = result[4] if len(result) > 4 else None
+                    time_in_range = result[5] if len(result) > 5 else None
+                    error_msg = "Unexpected result format"
+
+                    if not is_retry:
+                        if patient_name not in failed_configs:
+                            failed_configs[patient_name] = []
+                        failed_configs[patient_name].append(
+                            (
+                                patient_name,
+                                profile,
+                                scenario_val,
+                                img_save_dir,
+                                parameter_idx,
+                            )
+                        )
+
+                # Build result dict
+                result_dict = {"patient_name": patient_name}
+
+                # Add profile keys
+                if status in ["Completed", "Completed_On_Retry"] and isinstance(
+                    profile, dict
+                ):
+                    for key in profile_keys:
+                        result_dict[key] = profile.get(key)
+                else:
+                    for key in profile_keys:
+                        result_dict[key] = None
+
+                # Add remaining fields
+                result_dict.update(
+                    {
+                        "scenario": scenario_val.name if scenario_val else None,
+                        "parameter_idx": parameter_idx,
+                        "error_msg": error_msg if "Failed" in status else None,
+                        "very_high": (
+                            time_in_range.get("very_high") if time_in_range else None
+                        ),
+                        "high": time_in_range.get("high") if time_in_range else None,
+                        "target": (
+                            time_in_range.get("target") if time_in_range else None
+                        ),
+                        "low": time_in_range.get("low") if time_in_range else None,
+                        "very_low": (
+                            time_in_range.get("very_low") if time_in_range else None
+                        ),
+                        "status": status,
+                    }
+                )
+
+                results_list.append(result_dict)
+
+    return results_list, failed_configs
 
 
 if __name__ == "__main__":
@@ -322,11 +459,11 @@ if __name__ == "__main__":
         combined_profiles[group] = {}
         for idx, profile in enumerate(profiles):
             for param_idx, param in parameter_group.items():
-                profile_idx = f"{idx}_{param_idx}"
+                parameter_idx = f"{idx}_{param_idx}"
                 # Merge profile and param, and add an index for identification
                 temp_profile = profile.copy()
                 temp_profile.update(param)
-                combined_profiles[group][profile_idx] = temp_profile
+                combined_profiles[group][parameter_idx] = temp_profile
                 # TODO, for quick testing
                 # break
             # TODO, for quick testing
@@ -344,15 +481,15 @@ if __name__ == "__main__":
             for patient_name in patients:
                 patient_configs[patient_name] = []
                 # Create patient folder upfront
-                for profile_idx, profile_data in combined_profiles[group].items():
-                    param_folder = f"param_{profile_idx}"
+                for parameter_idx, profile_data in combined_profiles[group].items():
+                    param_folder = f"param_{parameter_idx}"
                     patient_folder = patient_name.replace("#", "_")
                     patient_dir = test_patient_dir / patient_folder / param_folder
                     patient_dir.mkdir(exist_ok=True, parents=True)
                     print(f"Created directory: {patient_dir}")
                     for sc in scenarios:
                         patient_configs[patient_name].append(
-                            (patient_name, profile_data, sc, patient_dir, profile_idx)
+                            (patient_name, profile_data, sc, patient_dir, parameter_idx)
                         )
         break
 
@@ -365,91 +502,51 @@ if __name__ == "__main__":
     )
     print(f"Using {min(multiprocessing.cpu_count(), len(patient_configs))} CPU cores\n")
 
-    results_list = []  # Initialize results_list before the loop
     profile_keys = [k for k in patient_group_profiles[PatientType.CHILD][0].keys()]
 
-    with ProcessPoolExecutor(
-        max_workers=min(multiprocessing.cpu_count(), len(patient_configs))
-    ) as executor:
-        # Submit one job per patient (each job runs all profiles for that patient sequentially)
-        futures = [
-            executor.submit(run_patient_all_profiles, configs)
-            for patient_name, configs in patient_configs.items()
-        ]
+    # Run initial tests
+    results_list, failed_configs = execute_tests_and_process_results(
+        patient_configs, profile_keys, is_retry=False
+    )
 
-        for future in as_completed(futures):
-            patient_results = (
-                future.result()
-            )  # This is a list of results for one patient
+    print(f"\n✅ Initial test run completed!")
 
-            for result in patient_results:
-                print(result)
-                # Parse result string for status and patient/postfix
-                if isinstance(result, tuple) and len(result) == 6:
-                    # result is (patient_name, args, profile_idx, profile, scenario_val, time_in_range)
-                    # or (patient_name, args, profile_idx, profile, scenario_val, str(e))
-                    patient_name = result[0]
-                    args = result[1]
-                    profile_idx = result[2]
-                    profile = result[3]
-                    scenario_val = result[4]
-                    time_in_range = result[5]
+    # Retry failed tests if any
+    if failed_configs:
+        print(
+            f"\n🔄 Retrying {sum(len(configs) for configs in failed_configs.values())} failed configurations..."
+        )
 
-                    if isinstance(time_in_range, str):
-                        status = "Failed"
-                        error_msg = f"Error: {time_in_range}"
-                        time_in_range = None
-                    else:
-                        status = "Completed"
-                        error_msg = None
-                else:
-                    status = "Failed"
-                    patient_name = result[0] if len(result) > 0 else "Unknown"
-                    profile = f"Error: Unexpected result format"
-                    error_msg = "Error: Unexpected result format"
-                    scenario_val = None
-                    time_in_range = None
+        # Run retry tests
+        retry_results, _ = execute_tests_and_process_results(
+            failed_configs, profile_keys, is_retry=True
+        )
 
-                # Build result dict with profile keys
-                result_dict = {"patient_name": patient_name}
+        # Update original results with retry results
+        for retry_result in retry_results:
+            # Find matching original result and update it
+            for i, original_result in enumerate(results_list):
+                if (
+                    original_result["patient_name"] == retry_result["patient_name"]
+                    and original_result["parameter_idx"]
+                    == retry_result["parameter_idx"]
+                    and original_result["scenario"] == retry_result["scenario"]
+                    and original_result["status"] == "Failed"
+                ):
+                    # Replace the failed result with the retry result
+                    results_list[i] = retry_result
+                    break
 
-                # Add profile keys - use profile values if completed, None if failed
-                if status == "Completed" and isinstance(profile, dict):
-                    for key in profile_keys:
-                        result_dict[key] = profile.get(key)
-                else:
-                    for key in profile_keys:
-                        result_dict[key] = None
-
-                # Add remaining fields
-                result_dict.update(
-                    {
-                        "scenario": scenario_val.name if scenario_val else None,
-                        "error_msg": error_msg if status == "Failed" else None,
-                        "very_high": (
-                            time_in_range.get("very_high") if time_in_range else None
-                        ),
-                        "high": time_in_range.get("high") if time_in_range else None,
-                        "target": (
-                            time_in_range.get("target") if time_in_range else None
-                        ),
-                        "low": time_in_range.get("low") if time_in_range else None,
-                        "very_low": (
-                            time_in_range.get("very_low") if time_in_range else None
-                        ),
-                        "status": status,
-                    }
-                )
-
-                results_list.append(result_dict)
+        print(f"✅ Retry completed!")
 
     print(f"\n✅ All tests completed!")
 
     # Save results to CSV
-    filednames = [
+    fieldnames = [
         "patient_name",
         *profile_keys,
         "scenario",
+        "parameter_idx",
         "error_msg",
         "very_high",
         "high",
@@ -463,7 +560,7 @@ if __name__ == "__main__":
     try:
         csv_file = test_patient_dir / "test_results.csv"
         with open(csv_file, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=filednames)
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             for row in results_list:
                 writer.writerow(row)
@@ -495,3 +592,16 @@ if __name__ == "__main__":
             print(f"JSON error logged to {error_log_file}")
         except Exception as log_error:
             print(f"Error writing to log file: {log_error}")
+
+    # Print final summary
+    failed_count = sum(1 for r in results_list if "Failed" in r.get("status", ""))
+    success_count = sum(
+        1
+        for r in results_list
+        if r.get("status") in ["Completed", "Completed_On_Retry"]
+    )
+
+    print(f"\n📊 Final Summary:")
+    print(f"  ✅ Successful: {success_count}")
+    print(f"  ❌ Failed: {failed_count}")
+    print(f"  Total: {len(results_list)}")

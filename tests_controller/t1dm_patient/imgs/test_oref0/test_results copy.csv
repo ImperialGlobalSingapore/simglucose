@@ -1,4 +1,0 @@
-patient_name,sens,dia,carb_ratio,max_iob,max_basal,max_daily_basal,max_bg,min_bg,maxCOB,isfProfile,min_5m_carbimpact,scenario,error_msg,very_high,high,target,low,very_low,status
-adult#001,60,4.0,20,5,2.5,2.5,120,120,120,"{'sensitivities': [{'offset': 0, 'sensitivity': 60}]}",10.0,SINGLE_MEAL,,,0.10462962962962963,0.8953703703703704,,,Completed
-adult#001,60,4.0,20,5,2.5,2.5,120,120,120,"{'sensitivities': [{'offset': 0, 'sensitivity': 60}]}",10.0,ONE_DAY,,,0.24275862068965517,0.7572413793103449,,,Completed
-adult#001,60,4.0,20,5,2.5,2.5,120,120,120,"{'sensitivities': [{'offset': 0, 'sensitivity': 60}]}",10.0,THREE_DAY,,,0.24318706697459586,0.7568129330254042,,,Completed

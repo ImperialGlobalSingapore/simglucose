@@ -326,7 +326,8 @@ if __name__ == "__main__":
         ctrl = BBController()
         logger.info("Using Basal-Bolus Controller")
     elif CONTROLLER_TYPE.lower() == "oref0":
-        ctrl = ORefZeroController(timeout=30000)
+        current_basal = p._params.u2ss * p._params.BW / 6000 * 60  # to U/h
+        ctrl = ORefZeroController(current_basal=current_basal)
         logger.info("Using Oref0")
     current_sim_time = datetime.now()  # Starting time for simulation
     while p.t < 288:

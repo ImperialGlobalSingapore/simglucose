@@ -30,7 +30,9 @@ file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 
 img_dir = parent_folder / "imgs"
-test_patient_dir = img_dir / "oref0_parameter_tuning"
+# Create timestamp for this run
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+test_patient_dir = img_dir / "oref0_parameter_tuning" / timestamp
 
 CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
@@ -308,9 +310,9 @@ def generate_profiles_by_group(group: PatientType):
             "sens": 150,
             "dia": 7,
             "carb_ratio": 30,
-            "max_iob": 20,  # from paper
-            "max_basal": 5,  # from paper
-            "max_daily_basal": 0.8,
+            "max_iob": 3,  # from paper, max 20, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # from paper, max 10
+            "max_daily_basal": 0.9,  # from paper
             "max_bg": max_bg,
             "min_bg": min_bg,
             "maxCOB": 120,  # from oref0 code
@@ -318,12 +320,12 @@ def generate_profiles_by_group(group: PatientType):
             "min_5m_carbimpact": 8,  # from paper and oref0 code
         },
         PatientType.ADULT: {
-            "sens": 60,
+            "sens": 45,
             "dia": 7.0,
             "carb_ratio": 20,
-            "max_iob": 30,  # from paper
-            "max_basal": 10,  # from paper
-            "max_daily_basal": 2.5,
+            "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # from paper, max 10
+            "max_daily_basal": 0.9,  # from paper
             "max_bg": max_bg,
             "min_bg": min_bg,
             "maxCOB": 120,  # from oref0 code
@@ -337,29 +339,11 @@ def generate_profiles_by_group(group: PatientType):
             "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
             "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
             "carb_ratio": {"step_count": 3, "range": (15, 20)},  # ICR 1:15 to 1:20, gpt
-            # "max_iob": {"step_count": 3, "range": (2, 4)},
-            # "max_basal": {
-            #     "step_count": 3,
-            #     "range": (0.8, 1.5),
-            # },
-            "max_daily_basal": {
-                "step_count": 3,
-                "range": (0.5, 1),
-            },  # u/kg/day, gpt
         },
         PatientType.ADULT: {
             "sens": {"step_count": 3, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
             "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
             "carb_ratio": {"step_count": 3, "range": (10, 15)},  # ICR 1:10 to 1:15, gpt
-            # "max_iob": {"step_count": 3, "range": (5, 10)},
-            # "max_basal": {
-            #     "step_count": 3,
-            #     "range": (2.5, 5.0),
-            # },
-            "max_daily_basal": {
-                "step_count": 3,
-                "range": (0.4, 1),
-            },  # u/kg/day, gpt
         },
     }
 
@@ -440,10 +424,10 @@ if __name__ == "__main__":
             # Create patient folder upfront
             for parameter_idx, profile_data in combined_profiles[group].items():
                 patient_folder = patient_name.replace("#", "_")
-                print(f"Created directory: {patient_dir}")
                 for sc in scenarios:
                     patient_dir = test_patient_dir / patient_folder / sc.value
                     patient_dir.mkdir(exist_ok=True, parents=True)
+                    print(f"Created directory: {patient_dir}")
                     patient_configs[patient_name].append(
                         (patient_name, profile_data, sc, patient_dir, parameter_idx)
                     )

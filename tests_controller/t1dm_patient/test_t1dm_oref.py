@@ -482,12 +482,11 @@ if __name__ == "__main__":
                 patient_configs[patient_name] = []
                 # Create patient folder upfront
                 for parameter_idx, profile_data in combined_profiles[group].items():
-                    param_folder = f"param_{parameter_idx}"
                     patient_folder = patient_name.replace("#", "_")
-                    patient_dir = test_patient_dir / patient_folder / param_folder
-                    patient_dir.mkdir(exist_ok=True, parents=True)
                     print(f"Created directory: {patient_dir}")
                     for sc in scenarios:
+                        patient_dir = test_patient_dir / patient_folder / sc.value
+                        patient_dir.mkdir(exist_ok=True, parents=True)
                         patient_configs[patient_name].append(
                             (patient_name, profile_data, sc, patient_dir, parameter_idx)
                         )

@@ -100,42 +100,14 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     fig.tight_layout()
 
 
-def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title):
-    fig, ax = plt.subplots(3, sharex=True)
-    _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title)
-    plt.show()
+def _plot_time_in_range_scale(scale_ax, time_in_range):
+    """
+    Plot time in range scale bar on the given axis.
 
-
-def save_name_pattern(k_P, k_I, k_D, sample_time, basal_rate, remark=""):
-    return f"{remark}pid_st{sample_time}_br{basal_rate}_p{k_P}_i{k_I}_d{k_D}"
-
-
-def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
-    fig_title = Path(file_name).stem
-    fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
-    _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title)
-    fig.savefig(f"{file_name}")
-    plt.close(fig)
-
-
-def plot_with_scale_and_save(t, BG, CHO, insulin, target_BG, time_in_range, file_name):
-    fig_title = Path(file_name).stem
-    fig, ax = plt.subplots(3, sharex=True, figsize=(15, 10))
-    # Create a new grid with an extra column for the scale bar
-    fig.clf()
-    gs = gridspec.GridSpec(
-        3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.05
-    )
-    ax0 = fig.add_subplot(gs[0, 0])
-    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
-    ax2 = fig.add_subplot(gs[2, 0], sharex=ax0)
-    scale_ax = fig.add_subplot(gs[:, 1])
-
-    # Plot the main data
-    axes = [ax0, ax1, ax2]
-    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
-
-    # Configure scale bar with new color scheme and drawing logic
+    Args:
+        scale_ax: Matplotlib axis for the scale bar
+        time_in_range: Dict with time in range statistics
+    """
     scale_ax.axis("off")
 
     # Define colors for each range category
@@ -234,8 +206,83 @@ def plot_with_scale_and_save(t, BG, CHO, insulin, target_BG, time_in_range, file
     scale_ax.set_ylim(0, 100)
     scale_ax.set_title("Time in Range", fontsize=12)
 
+
+def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range=None):
+    """
+    Create a complete plot figure with optional time in range scale.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Optional dict with time in range statistics
+
+    Returns:
+        matplotlib.figure.Figure: The created figure
+    """
+    # Create figure with gridspec layout (consistent for both cases)
+    fig = plt.figure(figsize=(15, 10))
+    gs = gridspec.GridSpec(
+        3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.05
+    )
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
+    ax2 = fig.add_subplot(gs[2, 0], sharex=ax0)
+    scale_ax = fig.add_subplot(gs[:, 1])
+
+    axes = [ax0, ax1, ax2]
+    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+
+    # Add time in range scale bar if provided, otherwise hide the axis
+    if time_in_range is not None:
+        _plot_time_in_range_scale(scale_ax, time_in_range)
+    else:
+        scale_ax.axis("off")
+
+    return fig
+
+
+def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title, time_in_range=None):
+    """
+    Display plot with optional time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Optional dict with time in range statistics
+    """
+    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range)
+    plt.show()
+
+
+def plot_and_save(t, BG, CHO, insulin, target_BG, file_name, time_in_range=None):
+    """
+    Save plot to file with optional time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        file_name: Path to save the figure
+        time_in_range: Optional dict with time in range statistics
+    """
+    fig_title = Path(file_name).stem
+    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range)
     fig.savefig(f"{file_name}")
     plt.close(fig)
+
+
+def save_name_pattern(k_P, k_I, k_D, sample_time, basal_rate, remark=""):
+    return f"{remark}pid_st{sample_time}_br{basal_rate}_p{k_P}_i{k_I}_d{k_D}"
 
 
 def save_to_csv(log_dir, t, BG, CHO, insulin, file_name):
@@ -285,6 +332,37 @@ def get_patient_by_group(patient_type: PatientType):
         return [f"adult#00{i}" for i in range(1, 10)]
     elif patient_type == PatientType.CHILD:
         return [f"child#00{i}" for i in range(1, 10)]
+
+
+def calculate_time_in_range(BG_values):
+    """
+    Calculate time in range statistics for blood glucose values.
+
+    Args:
+        BG_values: List of blood glucose readings in mg/dL
+
+    Returns:
+        Dictionary with percentages for each range category
+    """
+    time_in_range = {"very_high": 0, "high": 0, "target": 0, "low": 0, "very_low": 0}
+
+    for bg in BG_values:
+        if bg > 250:
+            time_in_range["very_high"] += 1
+        elif bg > 180:
+            time_in_range["high"] += 1
+        elif bg > 70:
+            time_in_range["target"] += 1
+        elif bg > 54:
+            time_in_range["low"] += 1
+        else:
+            time_in_range["very_low"] += 1
+
+    # Convert to percentages, only include non-zero values
+    total = len(BG_values)
+    time_in_range = {k: v / total for k, v in time_in_range.items() if v > 0}
+
+    return time_in_range
 
 
 if __name__ == "__main__":

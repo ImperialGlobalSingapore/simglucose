@@ -3,7 +3,6 @@ import json
 import logging
 from pathlib import Path
 from collections import namedtuple
-import shutil
 import matplotlib
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -49,20 +48,19 @@ def patient_oref0(
     p = T1DMPatient.withName(patient_name)
     if profile:
         ctrl = ORefZeroController(
-            current_basal=p.basal * 60, profile=profile, timeout=30000
+            current_basal=p.basal * 60,
+            profile=profile,
+            timeout=30000,  # TODO: remove this when not in debug
         )  # U/min to U/h
     else:
         ctrl = ORefZeroController(
-            current_basal=p.basal * 60, timeout=30000
+            current_basal=p.basal * 60,
+            timeout=30000,  # TODO: remove this when not in debug
         )  # U/min to U/h
     t = []
     CHO = []
     insulin = []
     BG = []
-
-    # Directory already created upfront, no need to create here
-
-    time_in_range = {"very_high": 0, "high": 0, "target": 0, "low": 0, "very_low": 0}
 
     while p.t_elapsed < max_t[scenario]:
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
@@ -95,36 +93,111 @@ def patient_oref0(
             f"\033[94mt: {p.t_elapsed}, t: {p.t} BG: {p.observation.Gsub}, CHO: {carb}, Insulin: {ins}\033[0m"
         )
 
-        # Categorize BG into range groups (very_high, high, target, low, very_low)
-        bg = p.observation.Gsub
-        if bg > 250:
-            time_in_range["very_high"] += 1
-        elif bg > 180:
-            time_in_range["high"] += 1
-        elif bg > 70:
-            time_in_range["target"] += 1
-        elif bg > 54:
-            time_in_range["low"] += 1
-        else:
-            time_in_range["very_low"] += 1
-    time_in_range = {k: v / len(t) for k, v in time_in_range.items() if v > 0}
+    time_in_range = calculate_time_in_range(BG)
 
     sanitized_patient_name = patient_name.replace("#", "_")
     fig_title = f"test_patient_{sanitized_patient_name}_{scenario.name}_param_set_{parameter_idx}"
     if save_fig:
         file_name = img_save_dir / f"{fig_title}.png"
-        plot_with_scale_and_save(
+        plot_and_save(
             t,
             BG,
             CHO,
             insulin,
             ctrl.target_bg,
-            time_in_range,
             file_name,
+            time_in_range=time_in_range,
         )
 
     return time_in_range
 
+def generate_profiles_by_group(group: PatientType):
+    import numpy as np
+    from itertools import product
+
+    target_bg = 100  # mg/dL
+    min_bg = 90  # mg/dL
+    max_bg = target_bg * 2 - min_bg  # mg/dL
+
+    # Define parameter ranges for each age group based on literature
+    patient_group_default_profiles = {
+        PatientType.CHILD: {
+            "sens": 150,
+            "dia": 7,
+            "carb_ratio": 30,
+            "max_iob": 3,  # from paper, max 20, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # from paper, max 10
+            "max_daily_basal": 0.9,  # from paper
+            "max_bg": max_bg,
+            "min_bg": min_bg,
+            "maxCOB": 120,  # from oref0 code
+            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 150}]},
+            "min_5m_carbimpact": 8,  # from paper and oref0 code
+        },
+        PatientType.ADULT: {
+            "sens": 45,
+            "dia": 7.0,
+            "carb_ratio": 20,
+            "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # from paper, max 10
+            "max_daily_basal": 0.9,  # from paper
+            "max_bg": max_bg,
+            "min_bg": min_bg,
+            "maxCOB": 120,  # from oref0 code
+            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
+            "min_5m_carbimpact": 8,  # from paper and oref0 code
+        },
+    }
+
+    parameter_group = {
+        PatientType.CHILD: {
+            "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
+            "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
+            "carb_ratio": {"step_count": 3, "range": (15, 20)},  # ICR 1:15 to 1:20, gpt
+        },
+        PatientType.ADULT: {
+            "sens": {"step_count": 3, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
+            "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
+            "carb_ratio": {"step_count": 3, "range": (10, 15)},  # ICR 1:10 to 1:15, gpt
+        },
+    }
+
+    # Get base profile and parameter ranges for the group
+    base_profile = patient_group_default_profiles[group]
+    param_ranges = parameter_group[group]
+
+    # Generate value arrays for each parameter
+    param_values = {}
+    for param_name, param_config in param_ranges.items():
+        step_count = param_config["step_count"]
+        min_val, max_val = param_config["range"]
+        param_values[param_name] = np.linspace(min_val, max_val, step_count)
+
+    # Generate all combinations
+    param_names = list(param_values.keys())
+    value_combinations = product(*[param_values[name] for name in param_names])
+
+    # Create profiles
+    profiles = []
+    for idx, values in enumerate(value_combinations):
+        profile = base_profile.copy()
+
+        # Update each parameter value
+        sens_value = None
+        for param_name, value in zip(param_names, values):
+            profile[param_name] = value
+            if param_name == "sens":
+                sens_value = value
+
+        # Update isfProfile sensitivity to match sens value
+        if sens_value is not None:
+            profile["isfProfile"] = {
+                "sensitivities": [{"offset": 0, "sensitivity": sens_value}]
+            }
+
+        profiles.append(profile)
+
+    return profiles
 
 def run_single_patient_test(args):
     """Helper function for parallel execution"""
@@ -294,95 +367,6 @@ def execute_tests_and_process_results(
                 results_list.append(result_dict)
 
     return results_list, failed_configs
-
-
-def generate_profiles_by_group(group: PatientType):
-    import numpy as np
-    from itertools import product
-
-    target_bg = 100  # mg/dL
-    min_bg = 90  # mg/dL
-    max_bg = target_bg * 2 - min_bg  # mg/dL
-
-    # Define parameter ranges for each age group based on literature
-    patient_group_default_profiles = {
-        PatientType.CHILD: {
-            "sens": 150,
-            "dia": 7,
-            "carb_ratio": 30,
-            "max_iob": 3,  # from paper, max 20, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
-            "max_basal": 4,  # from paper, max 10
-            "max_daily_basal": 0.9,  # from paper
-            "max_bg": max_bg,
-            "min_bg": min_bg,
-            "maxCOB": 120,  # from oref0 code
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 150}]},
-            "min_5m_carbimpact": 8,  # from paper and oref0 code
-        },
-        PatientType.ADULT: {
-            "sens": 45,
-            "dia": 7.0,
-            "carb_ratio": 20,
-            "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
-            "max_basal": 4,  # from paper, max 10
-            "max_daily_basal": 0.9,  # from paper
-            "max_bg": max_bg,
-            "min_bg": min_bg,
-            "maxCOB": 120,  # from oref0 code
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
-            "min_5m_carbimpact": 8,  # from paper and oref0 code
-        },
-    }
-
-    parameter_group = {
-        PatientType.CHILD: {
-            "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
-            "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
-            "carb_ratio": {"step_count": 3, "range": (15, 20)},  # ICR 1:15 to 1:20, gpt
-        },
-        PatientType.ADULT: {
-            "sens": {"step_count": 3, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
-            "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
-            "carb_ratio": {"step_count": 3, "range": (10, 15)},  # ICR 1:10 to 1:15, gpt
-        },
-    }
-
-    # Get base profile and parameter ranges for the group
-    base_profile = patient_group_default_profiles[group]
-    param_ranges = parameter_group[group]
-
-    # Generate value arrays for each parameter
-    param_values = {}
-    for param_name, param_config in param_ranges.items():
-        step_count = param_config["step_count"]
-        min_val, max_val = param_config["range"]
-        param_values[param_name] = np.linspace(min_val, max_val, step_count)
-
-    # Generate all combinations
-    param_names = list(param_values.keys())
-    value_combinations = product(*[param_values[name] for name in param_names])
-
-    # Create profiles
-    profiles = []
-    for idx, values in enumerate(value_combinations):
-        profile = base_profile.copy()
-
-        # Update each parameter value
-        sens_value = None
-        for param_name, value in zip(param_names, values):
-            profile[param_name] = value
-            if param_name == "sens":
-                sens_value = value
-
-        # Update isfProfile sensitivity to match sens value
-        if sens_value is not None:
-            profile["isfProfile"] = {
-                "sensitivities": [{"offset": 0, "sensitivity": sens_value}]
-            }
-
-        profiles.append(profile)
-
-    return profiles
 
 
 if __name__ == "__main__":

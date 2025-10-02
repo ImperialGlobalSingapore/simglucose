@@ -9,7 +9,8 @@ from test_t1dpatient_pid import (
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import PatientType, Scenario
+from simglucose.patient.t1dm_patient import PatientType
+from tests_controller.plot_utils import Scenario
 
 
 class GoodParamCriteria(Enum):

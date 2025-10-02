@@ -11,7 +11,8 @@ from datetime import datetime, timedelta
 
 from simglucose.patient.t1dpatient_2 import T1DPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController
-from tests_controller.test_utils import *
+from simglucose.simulation.scenario_simple import Scenario
+from tests_controller.plot_utils import *
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -62,11 +63,11 @@ def test_oref0_simulation(
 
     print(f"Starting simulation for {patient_name} with {scenario.name} scenario")
     print(
-        f"Simulation duration: {max_t[scenario]} minutes ({max_t[scenario]/60:.1f} hours)"
+        f"Simulation duration: {scenario.max_t} minutes ({scenario.max_t/60:.1f} hours)"
     )
 
     # Main simulation loop
-    while p.t < max_t[scenario]:
+    while p.t < scenario.max_t:
         # Get carb intake based on scenario and exact time
         carb = scenario.get_carb(int(p.t), p._params.BW)
 

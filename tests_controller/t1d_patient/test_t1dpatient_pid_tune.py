@@ -13,7 +13,7 @@ from test_t1dpatient_pid import (
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import get_patients, Scenario
+from tests_controller.plot_utils import get_patients, Scenario
 
 # current file path
 file_path = Path(__file__).resolve()

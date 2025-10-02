@@ -13,10 +13,9 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from test_utils import (
+from plot_utils import (
     plot_and_show,
     plot_and_save,
-    save_name_pattern,
     get_rmse,
     get_patients,
 )
@@ -81,6 +80,10 @@ def run_sim_pid(k_P, k_I, k_D):
 
     save_to_csv(t, BG, CHO, insulin, k_P, k_I, k_D)
 """
+
+
+def save_name_pattern(k_P, k_I, k_D, sample_time, basal_rate, remark=""):
+    return f"{remark}pid_st{sample_time}_br{basal_rate}_p{k_P}_i{k_I}_d{k_D}"
 
 
 def run_sim_simple_pid_no_meal(

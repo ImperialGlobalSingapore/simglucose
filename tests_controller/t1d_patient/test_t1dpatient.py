@@ -9,7 +9,7 @@ from simglucose.patient.t1dpatient import T1DPatient, Action
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import plot_and_show, plot_and_save, get_rmse
+from tests_controller.plot_utils import plot_and_show, plot_and_save, get_rmse
 
 # Configure logger
 logger = logging.getLogger(__name__)

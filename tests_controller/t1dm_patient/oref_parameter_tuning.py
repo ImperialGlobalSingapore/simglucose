@@ -9,14 +9,14 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 
 
-from simglucose.patient.t1dm_patient import T1DMPatient, Action
+from simglucose.patient.t1dm_patient import T1DMPatient, Action, PatientType
 from simglucose.controller.oref_zero import ORefZeroController
 
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from simglucose.simulation import scenario
-from test_utils import *
+from simglucose.simulation.scenario_simple import Scenario
+from tests_controller.plot_utils import *
 
 matplotlib.use("Agg")  # Use non-interactive backend to prevent window pop-ups
 
@@ -62,7 +62,7 @@ def patient_oref0(
     insulin = []
     BG = []
 
-    while p.t_elapsed < max_t[scenario]:
+    while p.t_elapsed < scenario.max_t:
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
         ctrl_obs = CtrlObservation(p.observation.Gsub)

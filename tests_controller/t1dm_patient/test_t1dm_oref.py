@@ -16,7 +16,8 @@ from simglucose.controller.oref_zero import ORefZeroController
 import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
-from test_utils import Scenario, max_t, calculate_time_in_range, plot_and_show
+from simglucose.simulation.scenario_simple import Scenario
+from tests_controller.plot_utils import calculate_time_in_range, plot_and_show
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ def run_patient_with_oref0(
 
     # Run simulation
     logger.info(f"Starting simulation with scenario: {scenario.name}")
-    while p.t_elapsed < max_t[scenario]:
+    while p.t_elapsed < scenario.max_t:
         # Get meal for current time
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
@@ -133,26 +134,10 @@ def run_patient_with_oref0(
 
 
 if __name__ == "__main__":
-    """
-    Example usage of T1DM patient with ORef0 controller.
-    """
-
-    # Example 1: Run with default profile
-    print("\n" + "=" * 60)
-    print("Example 1: Adult patient with default ORef0 profile")
-    print("=" * 60)
-
-    run_patient_with_oref0(
-        patient_name="adult#001",
-        scenario=Scenario.ONE_DAY,
-        profile=None,
-        show_plot=False,
-    )
-
-    # Example 2: Run with custom profile
+    # Example: Run with custom profile
     # refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
     print("\n" + "=" * 60)
-    print("Example 2: Adult patient with custom ORef0 profile")
+    print("Example: Adult patient with custom ORef0 profile")
     print("=" * 60)
 
     custom_profile = {
@@ -170,8 +155,8 @@ if __name__ == "__main__":
     }
 
     run_patient_with_oref0(
-        patient_name="adult#001",
+        patient_name="adult#007",
         scenario=Scenario.ONE_DAY,
         profile=custom_profile,
-        show_plot=False,
+        show_plot=True,
     )

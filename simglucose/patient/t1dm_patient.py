@@ -2,6 +2,7 @@ import numpy as np
 import logging
 import json
 
+from enum import Enum
 from pathlib import Path
 from datetime import datetime, time, timedelta
 from collections import namedtuple
@@ -9,6 +10,13 @@ from scipy.integrate import ode
 from simglucose.patient.base import Patient
 
 logger = logging.getLogger(__name__)
+
+
+class PatientType(Enum):
+    ADOLESCENT = "adolescent"
+    ADULT = "adult"
+    CHILD = "child"
+
 
 # Controller selection: 'pid' or 'bb' (basal-bolus)
 CONTROLLER_TYPE = "pid"  # Change this to 'bb' to use BBController

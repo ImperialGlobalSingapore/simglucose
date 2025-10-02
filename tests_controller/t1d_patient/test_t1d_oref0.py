@@ -3,14 +3,13 @@ Simple test script for ORef0 controller with T1D patients.
 Based on the simulation pattern in t1dpatient_2.py
 """
 
-from collections import namedtuple
 import logging
 from pathlib import Path
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 from simglucose.patient.t1dpatient_2 import T1DPatient, Action
-from simglucose.controller.oref_zero import ORefZeroController
+from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
 from simglucose.simulation.scenario_simple import Scenario
 from tests_controller.plot_utils import *
 
@@ -23,10 +22,6 @@ file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 
 img_dir = parent_folder / "imgs"
-
-
-# Controller observation
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
 
 def test_oref0_simulation(
@@ -72,7 +67,7 @@ def test_oref0_simulation(
         carb = scenario.get_carb(int(p.t), p._params.BW)
 
         # Create controller observation
-        ctrl_obs = CtrlObservation(p.observation.Gsub)
+        ctrl_obs = CtrlObservation(p.observation.Gsub, bolus=0)
 
         # Check for critical hypoglycemia
         if p.observation.Gsub < 39:

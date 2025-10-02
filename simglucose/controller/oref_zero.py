@@ -10,6 +10,9 @@ from simglucose.controller.base import Controller, Action
 
 logger = logging.getLogger(__name__)
 
+# Named tuple for controller observation
+CtrlObservation = namedtuple("CtrlObservation", ["CGM", "bolus"])
+
 
 class ORefZeroController:
     """
@@ -42,6 +45,7 @@ class ORefZeroController:
         self.session.headers.update({"Content-Type": "application/json"})
 
         self.collect_meal = 0
+        self.collect_bolus = 0
 
         # Patient state tracking
         self.patient_profiles = {}  # patientId -> profile mapping
@@ -131,7 +135,7 @@ class ORefZeroController:
             "settings": {
                 "timezone": self.DEFAULT_TIMEZONE,
                 "historyRetentionHours": 24,
-                "autoCleanup": True,
+                "autoCleanup": False,
             },
         }
 
@@ -192,7 +196,12 @@ class ORefZeroController:
         return utc_time.isoformat() + "Z"  # Append 'Z' to indicate
 
     def _prepare_new_data(
-        self, patient_name: str, glucose: float, meal: float, timestamp: str
+        self,
+        patient_name: str,
+        glucose: float,
+        meal: float,
+        meal_bolus: float,
+        timestamp: str,
     ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
         new_data = {}
@@ -220,6 +229,9 @@ class ORefZeroController:
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
+
+        if meal_bolus > 0:
+            new_data["bolus"] = meal_bolus
 
         return new_data
 
@@ -261,6 +273,7 @@ class ORefZeroController:
 
         # accumulate meal data
         self.collect_meal += meal
+        self.collect_bolus += observation.bolus
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -268,20 +281,23 @@ class ORefZeroController:
             < datetime.fromisoformat(previous_timestamp.rstrip("Z"))
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
-            # TODO: check with loopinsight which one is correct
             return Action(
                 basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
             )
-            # return Action(basal=0, bolus=0)
 
         # Extract glucose level
         glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal, timestamp
+            patient_name,
+            glucose_level,
+            self.collect_meal,
+            self.collect_bolus,
+            timestamp,
         )
         self.collect_meal = 0  # Reset after sending
+        self.collect_bolus = 0  # Reset after sending
         print(new_data)
         # Prepare calculation request
         calc_data = {

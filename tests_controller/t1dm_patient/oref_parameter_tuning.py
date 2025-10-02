@@ -2,7 +2,6 @@ import csv
 import json
 import logging
 from pathlib import Path
-from collections import namedtuple
 import matplotlib
 from datetime import datetime
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -10,7 +9,7 @@ import multiprocessing
 
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action, PatientType
-from simglucose.controller.oref_zero import ORefZeroController
+from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
 
 import sys
 
@@ -33,8 +32,6 @@ img_dir = parent_folder / "imgs"
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 test_patient_dir = img_dir / "oref0_parameter_tuning" / timestamp
 
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
-
 
 def patient_oref0(
     patient_name="adolescent#003",
@@ -46,17 +43,12 @@ def patient_oref0(
 ):
 
     p = T1DMPatient.withName(patient_name)
-    if profile:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,
-            profile=profile,
-            timeout=30000,  # TODO: remove this when not in debug
-        )  # U/min to U/h
-    else:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,
-            timeout=30000,  # TODO: remove this when not in debug
-        )  # U/min to U/h
+    ctrl = ORefZeroController(
+        current_basal=p.basal * 60,
+        profile=profile,
+        timeout=30000,  # TODO: remove this when not in debug
+    )  # U/min to U/h
+
     t = []
     CHO = []
     insulin = []
@@ -65,7 +57,7 @@ def patient_oref0(
     while p.t_elapsed < scenario.max_t:
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
-        ctrl_obs = CtrlObservation(p.observation.Gsub)
+        ctrl_obs = CtrlObservation(p.observation.Gsub, bolus=0)
 
         if p.observation.Gsub < 39:
             print("Patient is dead")

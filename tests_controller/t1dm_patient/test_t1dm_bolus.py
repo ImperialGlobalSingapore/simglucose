@@ -1,16 +1,9 @@
-"""
-Simple example demonstrating how to use T1DM patient with ORef0 controller.
-
-This script shows a basic simulation of a T1DM patient using the OpenAPS ORef0
-algorithm for automated insulin delivery. It's meant as a reference implementation
-and testing example.
-"""
-
 import logging
 from pathlib import Path
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
+from simglucose.controller.meal_bolus_ctrller import MealAnnouncementBolusController
 
 import sys
 
@@ -22,7 +15,8 @@ from tests_controller.plot_utils import calculate_time_in_range, plot_and_show
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
-def run_patient_with_oref0(
+
+def run_patient_with_bolus_only(
     patient_name="adult#001",
     scenario=Scenario.ONE_DAY,
     profile=None,
@@ -45,11 +39,16 @@ def run_patient_with_oref0(
     logger.info(f"Patient {patient_name} initialized")
 
     # Initialize controller
-    ctrl = ORefZeroController(
-        current_basal=p.basal * 60,  # Convert U/min to U/h
-        profile=profile,
+    meal_bolus_ctrl = MealAnnouncementBolusController(
+        scenario=scenario,
+        carb_factor=(
+            profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
+        ),
+        release_time_before_meal=10,  # minutes before meal to release bolus
+        body_weight=p._params.BW,
     )
-    logger.info("ORef0 controller initialized")
+
+    basal = p.basal  # U/min
 
     # Storage for simulation data
     t = []
@@ -63,28 +62,15 @@ def run_patient_with_oref0(
         # Get meal for current time
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
-        # Create observation for controller
-        ctrl_obs = CtrlObservation(p.observation.Gsub, bolus=0)
+        # Get bolus from meal bolus controller
+        bolus_action = meal_bolus_ctrl.policy(p.t_elapsed)
 
         # Check for severe hypoglycemia
         if p.observation.Gsub < 39:
             logger.error("Severe hypoglycemia detected - stopping simulation")
-            break
 
-        # Get controller action
-        ctrl_action = ctrl.policy(
-            observation=ctrl_obs,
-            reward=0,
-            done=False,
-            patient_name=patient_name,
-            meal=carb,
-            time=p.t,
-        )
-
-        # Calculate total insulin (basal + bolus)
-        ins = ctrl_action.basal + ctrl_action.bolus
+        ins = basal + bolus_action.bolus  # Total insulin (basal + bolus)
         act = Action(insulin=ins, CHO=carb)
-
         # Record data
         t.append(p.t_elapsed)
         CHO.append(act.CHO)
@@ -115,7 +101,7 @@ def run_patient_with_oref0(
             BG,
             CHO,
             insulin,
-            ctrl.target_bg,
+            110,
             f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
         )
 
@@ -123,12 +109,6 @@ def run_patient_with_oref0(
 
 
 if __name__ == "__main__":
-    # Example: Run with custom profile
-    # refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
-    print("\n" + "=" * 60)
-    print("Example: Adult patient with custom ORef0 profile")
-    print("=" * 60)
-
     custom_profile = {
         "sens": 45,
         "dia": 7.0,
@@ -143,7 +123,7 @@ if __name__ == "__main__":
         "min_5m_carbimpact": 8,  # from paper and oref0 code
     }
 
-    run_patient_with_oref0(
+    run_patient_with_bolus_only(
         patient_name="adult#007",
         scenario=Scenario.ONE_DAY,
         profile=custom_profile,

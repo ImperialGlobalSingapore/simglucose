@@ -1,5 +1,7 @@
 from enum import Enum
 from simglucose.simulation.scenario import Action
+import numpy as np
+from scipy.stats import truncnorm
 
 
 class Scenario(Enum):
@@ -7,6 +9,55 @@ class Scenario(Enum):
     SINGLE_MEAL = "single_meal"
     ONE_DAY = "one_day"
     THREE_DAY = "three_day"
+    RANDOM_ONE_DAY = "random_one_day"
+
+    def __init__(self, value):
+        self._value_ = value  # handle Enum value
+        self._random_meals = None
+        self._random_gen = None
+        self._seed = 42  # Default seed for RANDOM_ONE_DAY
+
+    def set_random_seed(self, seed=None):
+        """Set random seed for RANDOM_ONE_DAY scenario."""
+        if self == Scenario.RANDOM_ONE_DAY:
+            self._seed = seed
+            self._random_gen = np.random.RandomState(seed)
+            self._random_meals = self._generate_random_meals()
+
+    def _generate_random_meals(self):
+        """Generate random meals following scenario_gen.py pattern."""
+        if self._random_gen is None:
+            self._random_gen = np.random.RandomState(None)
+
+        meals = []
+
+        # Probability of taking each meal
+        # [breakfast, snack1, lunch, snack2, dinner, snack3]
+        prob = [0.95, 0.3, 0.95, 0.3, 0.95, 0.3]
+        time_lb = np.array([5, 9, 10, 14, 16, 20]) * 60
+        time_ub = np.array([9, 10, 14, 16, 20, 23]) * 60
+        time_mu = np.array([7, 9.5, 12, 15, 18, 21.5]) * 60
+        time_sigma = np.array([60, 30, 60, 30, 60, 30])
+        amount_mu = [45, 10, 70, 10, 80, 10]
+        amount_sigma = [10, 5, 10, 5, 10, 5]
+
+        for p, tlb, tub, tbar, tsd, mbar, msd in zip(
+            prob, time_lb, time_ub, time_mu, time_sigma, amount_mu, amount_sigma
+        ):
+            if self._random_gen.rand() < p:
+                tmeal = np.round(
+                    truncnorm.rvs(
+                        a=(tlb - tbar) / tsd,
+                        b=(tub - tbar) / tsd,
+                        loc=tbar,
+                        scale=tsd,
+                        random_state=self._random_gen,
+                    )
+                )
+                amount = max(round(self._random_gen.normal(mbar, msd)), 0)
+                meals.append((int(tmeal), amount))
+
+        return meals
 
     def get_action(self, t, body_weight=None):
         """
@@ -22,6 +73,19 @@ class Scenario(Enum):
         # Force t to int for exact time matching
         t = int(t)
 
+        # Handle RANDOM_ONE_DAY separately
+        if self == Scenario.RANDOM_ONE_DAY:
+            # Generate meals at t=0 if not already generated
+            if t == 0 and self._random_meals is None:
+                self._random_meals = self._generate_random_meals()
+
+            # Check if current time matches any random meal time
+            if self._random_meals is not None:
+                for meal_time, meal_amount in self._random_meals:
+                    if meal_time == t:
+                        return Action(meal=meal_amount)
+            return Action(meal=0)
+
         carb_times_in_hour = {
             Scenario.NO_MEAL: [],
             Scenario.SINGLE_MEAL: [6],  # Assuming a meal at 6:00
@@ -35,7 +99,7 @@ class Scenario(Enum):
         carb_amounts = {
             Scenario.NO_MEAL: [],
             Scenario.SINGLE_MEAL: [50],  # 50g of carbs for single meal
-            Scenario.ONE_DAY: [40, 50, 70],  # 40g, 50g, 70g of carbs per meal
+            Scenario.ONE_DAY: [40, 60, 70],  # 40g, 50g, 70g of carbs per meal
             Scenario.THREE_DAY: [
                 40,
                 50,
@@ -78,6 +142,7 @@ class Scenario(Enum):
             Scenario.SINGLE_MEAL: 1080,  # 18 hours
             Scenario.ONE_DAY: 1450,  # 24 hours + 10 minutes
             Scenario.THREE_DAY: 4330,  # 72 hours + 10 minutes
+            Scenario.RANDOM_ONE_DAY: 1450,  # 24 hours + 10 minutes
         }[self]
 
 

@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
-from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
+
 from simglucose.controller.meal_bolus_ctrller import MealAnnouncementBolusController
 
 import sys
@@ -21,6 +21,8 @@ def run_patient_with_bolus_only(
     scenario=Scenario.ONE_DAY,
     profile=None,
     show_plot=True,
+    release_time_before_meal=10,  # minutes before meal to release bolus
+    carb_estimation_error=0.3,  # +/- percentage of carb estimation error
 ):
     """
     Run a simulation of a T1DM patient with ORef0 controller.
@@ -44,8 +46,9 @@ def run_patient_with_bolus_only(
         carb_factor=(
             profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
         ),
-        release_time_before_meal=10,  # minutes before meal to release bolus
-        body_weight=p._params.BW,
+        release_time_before_meal=release_time_before_meal,
+        carb_estimation_error=carb_estimation_error,
+        body_weight=p.body_weight,
     )
 
     basal = p.basal  # U/min
@@ -60,7 +63,7 @@ def run_patient_with_bolus_only(
     logger.info(f"Starting simulation with scenario: {scenario.name}")
     while p.t_elapsed < scenario.max_t:
         # Get meal for current time
-        carb = scenario.get_carb(p.t_elapsed, p._params.BW)
+        carb = scenario.get_carb(p.t_elapsed, p.body_weight)
 
         # Get bolus from meal bolus controller
         bolus_action = meal_bolus_ctrl.policy(p.t_elapsed)
@@ -103,6 +106,7 @@ def run_patient_with_bolus_only(
             insulin,
             110,
             f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
+            time_in_range=time_in_range,
         )
 
     return time_in_range
@@ -128,4 +132,6 @@ if __name__ == "__main__":
         scenario=Scenario.ONE_DAY,
         profile=custom_profile,
         show_plot=True,
+        release_time_before_meal=10,
+        carb_estimation_error=0.3,
     )

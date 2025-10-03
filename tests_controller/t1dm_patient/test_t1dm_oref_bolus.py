@@ -23,11 +23,14 @@ from tests_controller.plot_utils import calculate_time_in_range, plot_and_show
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
+
 def run_patient_with_oref0_bolus(
     patient_name="adult#001",
     scenario=Scenario.ONE_DAY,
     profile=None,
     show_plot=True,
+    release_time_before_meal=10,  # minutes before meal to release bolus
+    carb_estimation_error=0.3,  # +/- percentage of carb estimation error
 ):
     """
     Run a simulation of a T1DM patient with ORef0 controller.
@@ -44,6 +47,8 @@ def run_patient_with_oref0_bolus(
     # Initialize patient
     p = T1DMPatient.withName(patient_name)
     logger.info(f"Patient {patient_name} initialized")
+    if profile is not None:
+        profile["carb_ratio"] = p.carb_ratio
 
     # Initialize controller
     meal_bolus_ctrl = MealAnnouncementBolusController(
@@ -51,8 +56,9 @@ def run_patient_with_oref0_bolus(
         carb_factor=(
             profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
         ),
-        release_time_before_meal=10,  # minutes before meal to release bolus
-        body_weight=p._params.BW,
+        release_time_before_meal=release_time_before_meal,
+        body_weight=p.body_weight,
+        carb_estimation_error=carb_estimation_error,
     )
 
     oref_ctrl = ORefZeroController(
@@ -72,13 +78,13 @@ def run_patient_with_oref0_bolus(
     logger.info(f"Starting simulation with scenario: {scenario.name}")
     while p.t_elapsed < scenario.max_t:
         # Get meal for current time
-        carb = scenario.get_carb(p.t_elapsed, p._params.BW)
+        carb = scenario.get_carb(p.t_elapsed, p.body_weight)
 
         # Get controller action
-        meal_bolus = meal_bolus_ctrl.policy(p.t_elapsed)
+        meal_insulin = meal_bolus_ctrl.policy(p.t_elapsed)
 
         # Create observation for controller
-        ctrl_obs = CtrlObservation(CGM=p.observation.Gsub, bolus=meal_bolus.bolus)
+        ctrl_obs = CtrlObservation(CGM=p.observation.Gsub, bolus=meal_insulin.bolus)
 
         # Check for severe hypoglycemia
         if p.observation.Gsub < 39:
@@ -95,7 +101,7 @@ def run_patient_with_oref0_bolus(
         )
 
         # Calculate total insulin (basal + bolus)
-        ins = oref_insulin.basal + oref_insulin.bolus + meal_bolus.bolus  # U/min
+        ins = oref_insulin.basal + oref_insulin.bolus + meal_insulin.bolus  # U/min
         act = Action(insulin=ins, CHO=carb)
 
         # Record data
@@ -130,6 +136,7 @@ def run_patient_with_oref0_bolus(
             insulin,
             oref_ctrl.target_bg,
             f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
+            time_in_range=time_in_range,
         )
 
     return time_in_range
@@ -145,12 +152,12 @@ if __name__ == "__main__":
     custom_profile = {
         "sens": 45,
         "dia": 7.0,
-        "carb_ratio": 20,
+        "carb_ratio": 20,  # changed later from patient
         "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
         "max_basal": 4,  # from paper, max 10
         "max_daily_basal": 0.9,  # from paper
-        "max_bg": 140,
-        "min_bg": 90,
+        "max_bg": 150,
+        "min_bg": 71,
         "maxCOB": 120,  # from oref0 code
         "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
         "min_5m_carbimpact": 8,  # from paper and oref0 code
@@ -161,4 +168,6 @@ if __name__ == "__main__":
         scenario=Scenario.ONE_DAY,
         profile=custom_profile,
         show_plot=True,
+        release_time_before_meal=0,
+        carb_estimation_error=0.5,  # Assume 50% carb estimation error for testing
     )

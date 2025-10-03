@@ -1,3 +1,4 @@
+import random
 from collections import namedtuple
 
 
@@ -17,6 +18,7 @@ class MealAnnouncementBolusController:
         scenario,
         carb_factor=10,
         release_time_before_meal=10,  # minutes before meal to release bolus
+        carb_estimation_error=0.3,  # +/- percentage of carb estimation error
         body_weight=None,
     ):
         """
@@ -26,11 +28,13 @@ class MealAnnouncementBolusController:
             scenario: Scenario enum from scenario_simple.py (e.g., Scenario.ONE_DAY)
             carb_factor: Carbohydrate factor in g/U (default: 10, meaning 1U per 10g CHO)
             release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
+            carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
             body_weight: Patient body weight in kg (optional, for scenario meal calculation)
         """
         self.scenario = scenario
         self.carb_factor = carb_factor
         self.release_time_before_meal = release_time_before_meal
+        self.carb_estimation_error = carb_estimation_error
         self.body_weight = body_weight
 
         # Pre-calculate all meal times and amounts for efficiency
@@ -72,6 +76,13 @@ class MealAnnouncementBolusController:
 
         for meal_time, meal_amount in self._meal_schedule:
             if meal_time == target_meal_time:
+                # Add randomness to meal amount to simulate patient uncertainty
+                if self.carb_estimation_error > 0:
+                    random_factor = random.uniform(
+                        -self.carb_estimation_error, self.carb_estimation_error
+                    )
+                    meal_amount *= 1 + random_factor
+
                 # Calculate bolus: meal amount / carb factor
                 bolus = meal_amount / self.carb_factor
                 return Action(bolus=bolus)  # U/min

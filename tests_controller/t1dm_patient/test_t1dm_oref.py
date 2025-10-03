@@ -66,7 +66,7 @@ def run_patient_with_oref0(
     logger.info(f"Starting simulation with scenario: {scenario.name}")
     while p.t_elapsed < scenario.max_t:
         # Get meal for current time
-        carb = scenario.get_carb(p.t_elapsed, p._params.BW)
+        carb = scenario.get_carb(p.t_elapsed, p.body_weight)
 
         # Create observation for controller
         ctrl_obs = CtrlObservation(p.observation.Gsub)

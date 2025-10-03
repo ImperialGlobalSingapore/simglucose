@@ -46,17 +46,15 @@ def patient_oref0(
 ):
 
     p = T1DMPatient.withName(patient_name)
-    if profile:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,
-            profile=profile,
-            timeout=30000,  # TODO: remove this when not in debug
-        )  # U/min to U/h
-    else:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,
-            timeout=30000,  # TODO: remove this when not in debug
-        )  # U/min to U/h
+    if profile is not None:
+        profile["carb_ratio"] = p.carb_ratio
+
+    ctrl = ORefZeroController(
+        current_basal=p.basal * 60,
+        profile=profile,
+        timeout=30000,  # TODO: remove this when not in debug
+    )  # U/min to U/h
+
     t = []
     CHO = []
     insulin = []
@@ -156,7 +154,7 @@ if __name__ == "__main__":
         patient_name=patient_name,
         profile=profile,
         save_fig=True,
-        attacking=False,
+        attacking=True,
         attack_step=attack_step,
         attack_maintain=attack_maintain,
     )

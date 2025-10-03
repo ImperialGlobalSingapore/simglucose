@@ -48,6 +48,8 @@ def run_patient_with_oref0(
     # Initialize patient
     p = T1DMPatient.withName(patient_name)
     logger.info(f"Patient {patient_name} initialized")
+    if profile is not None:
+        profile["carb_ratio"] = p.carb_ratio
 
     # Initialize controller
     ctrl = ORefZeroController(
@@ -122,6 +124,7 @@ def run_patient_with_oref0(
             insulin,
             ctrl.target_bg,
             f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
+            time_in_range=time_in_range,
         )
 
     return time_in_range

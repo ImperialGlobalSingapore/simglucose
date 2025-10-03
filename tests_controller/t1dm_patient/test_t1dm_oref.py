@@ -50,17 +50,11 @@ def run_patient_with_oref0(
     logger.info(f"Patient {patient_name} initialized")
 
     # Initialize controller
-    if profile:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,  # Convert U/min to U/h
-            profile=profile,
-        )
-        logger.info("ORef0 controller initialized with custom profile")
-    else:
-        ctrl = ORefZeroController(
-            current_basal=p.basal * 60,  # Convert U/min to U/h
-        )
-        logger.info("ORef0 controller initialized with default profile")
+    ctrl = ORefZeroController(
+        current_basal=p.basal * 60,  # Convert U/min to U/h
+        profile=profile,
+    )
+    logger.info("ORef0 controller initialized")
 
     # Storage for simulation data
     t = []

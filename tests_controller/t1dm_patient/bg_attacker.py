@@ -12,7 +12,7 @@ class BGAttacker:
     Ramps up to target (300 mg/dL), maintains for 30min, then ramps down.
     """
 
-    def __init__(self, step=1.8, maintain_duration=30):
+    def __init__(self, step: float = 1.8, maintain_duration: float = 30.0):
         """
         Args:
             attack_start_time: When attack starts (minutes)

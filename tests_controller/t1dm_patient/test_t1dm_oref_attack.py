@@ -13,7 +13,7 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 from simglucose.simulation import scenario
-from test_utils import *
+from plot_utils import *
 from bg_attacker import BGAttacker
 
 
@@ -65,7 +65,7 @@ def patient_oref0(
     attacking_ts = [300, 900]
     attacker = BGAttacker(step=attack_step, maintain_duration=attack_maintain)
 
-    while p.t_elapsed < max_t[scenario]:
+    while p.t_elapsed < scenario.max_t:
         carb = scenario.get_carb(p.t_elapsed, p._params.BW)
 
         if p.observation.Gsub < 39:

@@ -31,7 +31,7 @@ def test_patient(
     test_patient_dir.mkdir(exist_ok=True, parents=True)
 
     p = T1DMPatient.withName(patient_name)
-    basal_rate = p._params.u2ss * p._params.BW  # U/min
+    basal_rate = p.basal
 
     t = []
     CHO = []
@@ -40,7 +40,7 @@ def test_patient(
 
     while p.t_elapsed < 2000:
 
-        carb = scenario.get_carb(p.t_elapsed, p._params.BW)
+        carb = scenario.get_carb(p.t_elapsed, p.body_weight)
 
         if basal_rate is not None:
             act = Action(insulin=basal_rate, CHO=carb)

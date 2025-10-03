@@ -106,8 +106,12 @@ class T1DMPatient(Patient):
         return u2ss * BW / 6000
 
     @property
-    def weight(self):
+    def body_weight(self):
         return self._params.BW
+
+    @property
+    def carb_ratio(self):
+        return self._params.CR
 
     @property
     def state(self):

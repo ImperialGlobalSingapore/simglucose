@@ -140,7 +140,6 @@ class T1DMPatient(Patient):
         """
         return the observation from patient
         for now, only the subcutaneous glucose level is returned
-        TODO: add heart rate as an observation
         """
         GM = self.state[12]  # subcutaneous glucose (mg/kg)
         Gsub = GM / self._params.Vg  # (matlab) corrected

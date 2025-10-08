@@ -326,8 +326,18 @@ if __name__ == "__main__":
         ctrl = BBController()
         logger.info("Using Basal-Bolus Controller")
     elif CONTROLLER_TYPE.lower() == "oref0":
-        current_basal = p._params.u2ss * p._params.BW / 6000 * 60  # to U/h
-        ctrl = ORefZeroController(current_basal=current_basal)
+        # load CR
+        from simglucose.utils import fetch_patient_quest
+
+        params = fetch_patient_quest(patient_name)
+        profile = {}
+        profile["carb_ratio"] = params["CR"]
+        profile["current_basal"] = float(basal * 60)  # to U/h
+
+        ctrl = ORefZeroController()
+        if not ctrl.initialize_patient(patient_name, profile=profile):
+            raise ValueError("Failed to initialize Oref0 controller")
+
         logger.info("Using Oref0")
     current_sim_time = datetime.now()  # Starting time for simulation
     while p.t < 288:

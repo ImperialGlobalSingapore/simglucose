@@ -11,7 +11,7 @@ from simglucose.controller.base import Controller, Action
 logger = logging.getLogger(__name__)
 
 
-class ORefZeroController:
+class ORefZeroController(Controller):
     """
     OpenAPS oref0 controller that communicates with Node.js server
     for insulin dosage recommendations
@@ -22,18 +22,14 @@ class ORefZeroController:
 
     def __init__(
         self,
-        current_basal: float,
         server_url: str = "http://localhost:3000",
-        profile: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
     ):
         """
-        Initialize the ORefZero controller
+        Initialize the ORefZero controller (supports multiple patients)
 
         Args:
-            current_basal: current basal rate
             server_url: URL of the Node.js OpenAPS server
-            profile: Custom patient profile, uses default if None
             timeout: Request timeout in seconds
         """
         self.server_url = server_url.rstrip("/")
@@ -41,20 +37,19 @@ class ORefZeroController:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
-        self.collect_meal = 0
-
-        # Patient state tracking
+        # Patient state tracking (multi-patient support)
         self.patient_profiles = {}  # patientId -> profile mapping
         self.last_glucose_time = {}  # patientId -> last glucose timestamp
         self.glucose_history = {}  # patientId -> list of glucose readings
         self.meal_history = {}  # patientId -> list of meal entries
         self.pump_history = {}  # patientId -> list of pump events
+        self.collect_meal = {}  # patientId -> accumulated meal amount
+        self.last_insulin = {}  # patientId -> last insulin recommendation
 
         # Store the required profile
-        # TODO: verify the parameters with loopinsight
         # Set default profile, but override defaults with any keys present in 'profile'
-        base_profile = {
-            "current_basal": current_basal,  # Current basal rate in U/h
+        self.default_profile = {
+            "current_basal": None,  # Current basal rate in U/h
             "sens": 50,  # Insulin Sensitivity Factor (ISF)
             "dia": 6,  # Duration of Insulin Action in hours
             "carb_ratio": 10,  # Carb Ratio (g/U)
@@ -68,9 +63,6 @@ class ORefZeroController:
             "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
             "type": "current",  # Profile type
         }
-        if profile:
-            base_profile.update(profile)
-        self.default_profile = base_profile
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 
@@ -111,18 +103,20 @@ class ORefZeroController:
 
         except Exception as e:
             logger.error(f"Unexpected error for {url}: {str(e)}")
-            raise
+            raise Exception("Unexpected error during server request")
 
-    def _initialize_patient(
+    def initialize_patient(
         self, patient_name: str, profile: Optional[Dict] = None
     ) -> bool:
+        """Public method to initialize patient with given profile"""
         patient_name = patient_name.replace("#", "")
-        """Initialize patient on the server"""
-        if patient_name in self.patient_profiles:
-            logger.debug(f"Patient {patient_name} already initialized")
-            return True
+        patient_profile = self.default_profile.copy()
+        if profile:
+            patient_profile.update(profile)
 
-        patient_profile = profile or self.default_profile.copy()
+        if not self._check_and_correct_profile(patient_profile):
+            logger.error(f"Invalid profile for patient {patient_name}")
+            return False
 
         # Prepare initialization data
         init_data = {
@@ -144,6 +138,8 @@ class ORefZeroController:
             self.meal_history[patient_name] = []
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
+            self.collect_meal[patient_name] = 0
+            self.last_insulin[patient_name] = {"basal": 0.0, "bolus": 0.0}
 
             logger.info(f"Patient {patient_name} initialized successfully")
             return True
@@ -151,6 +147,33 @@ class ORefZeroController:
         except Exception as e:
             logger.error(f"Failed to initialize patient {patient_name}: {str(e)}")
             return False
+
+    def is_patient_initialized(
+        self, patient_name: str, profile: Optional[Dict] = None
+    ) -> bool:
+        patient_name = patient_name.replace("#", "")
+        """Initialize patient on the server"""
+        if patient_name in self.patient_profiles:
+            logger.debug(f"Patient {patient_name} already initialized")
+            return True
+        return False
+
+    def _check_and_correct_profile(self, profile: Dict):
+        # make sure current_basal is set
+        if profile["current_basal"] is None:
+            logger.error("Profile must include current_basal rate")
+            return False
+
+        # make sure min_bg < max_bg
+        if profile["min_bg"] > profile["max_bg"]:
+            logger.error("Profile min_bg must be less than max_bg")
+            return False
+
+        # make sure isfProfile has same sensitivity as sens
+        profile["isfProfile"] = {
+            "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
+        }
+        return True
 
     @staticmethod
     def _local_timezone() -> datetime:
@@ -248,19 +271,18 @@ class ORefZeroController:
         """
         patient_name = patient_name.replace("#", "")
         # Initialize patient if not already done
-        if not self._initialize_patient(patient_name):
-            logger.warning(
-                f"Failed to initialize patient {patient_name}, using default action"
-            )
-            # return Action(basal=1.0, bolus=0.0)  # Default safe action
-            raise ValueError("Forgot to initialise patient.")
+        if not self.is_patient_initialized(patient_name):
+            if not self.initialize_patient(patient_name):
+                logger.warning(f"Failed to initialize patient {patient_name}")
+                # return Action(basal=1.0, bolus=0.0)  # Default safe action
+                raise ValueError("Forgot to initialise patient.")
 
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time.get(patient_name)
 
         # accumulate meal data
-        self.collect_meal += meal
+        self.collect_meal[patient_name] += meal
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -268,9 +290,9 @@ class ORefZeroController:
             < datetime.fromisoformat(previous_timestamp.rstrip("Z"))
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
-            # TODO: check with loopinsight which one is correct
             return Action(
-                basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
+                basal=self.last_insulin[patient_name]["basal"],
+                bolus=self.last_insulin[patient_name]["bolus"]
             )
             # return Action(basal=0, bolus=0)
 
@@ -279,9 +301,9 @@ class ORefZeroController:
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal, timestamp
+            patient_name, glucose_level, self.collect_meal[patient_name], timestamp
         )
-        self.collect_meal = 0  # Reset after sending
+        self.collect_meal[patient_name] = 0  # Reset after sending
         print(new_data)
         # Prepare calculation request
         calc_data = {
@@ -320,9 +342,9 @@ class ORefZeroController:
             f"Meal={meal:.1f}g, Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
         )
 
-        # Store the last glucose time
+        # Store the last glucose time and insulin recommendation
         self.last_glucose_time[patient_name] = timestamp
-        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_insulin[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
 
         return Action(basal=basal_rate, bolus=bolus_amount)
 

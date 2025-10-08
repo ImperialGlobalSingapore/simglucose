@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from simglucose.patient.t1dpatient_2 import T1DPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController
 from simglucose.simulation.scenario_simple import Scenario
+from simglucose.utils import fetch_patient_quest
+
 from tests_controller.plot_utils import *
 
 # Configure logger
@@ -45,10 +47,16 @@ def test_oref0_simulation(
     """
     # Initialize patient
     p = T1DPatient.withName(patient_name)
-    current_basal = p._params.u2ss * p._params.BW / 6000 * 60  # to U/h
-    # Initialize controller with minimal configuration
-    ctrl = ORefZeroController(current_basal=current_basal, timeout=30000)
+    profile = {}
 
+    params = fetch_patient_quest(patient_name)
+    profile["carb_ratio"] = params["CR"]
+    profile["current_basal"] = p._params.u2ss * p._params.BW / 6000 * 60  # to U/h
+    # Initialize controller with minimal configuration
+    ctrl = ORefZeroController()
+    if not ctrl.initialize_patient(patient_name, profile=profile):
+        raise ValueError("Failed to initialize Oref0 controller")
+    logger.info(f"Patient {patient_name} and ORef0 controller initialized")
     # Data collection lists
     t = []
     CHO = []

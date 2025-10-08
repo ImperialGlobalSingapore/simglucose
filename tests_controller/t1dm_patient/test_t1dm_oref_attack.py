@@ -48,12 +48,10 @@ def patient_oref0(
     p = T1DMPatient.withName(patient_name)
     if profile is not None:
         profile["carb_ratio"] = p.carb_ratio
+        profile["current_basal"] = p.basal * 60  # U/min to U/h
 
-    ctrl = ORefZeroController(
-        current_basal=p.basal * 60,
-        profile=profile,
-        timeout=30000,  # TODO: remove this when not in debug
-    )  # U/min to U/h
+    ctrl = ORefZeroController(timeout=30000)  # TODO: remove this when not in debug
+    ctrl.initialize_patient(patient_name, profile=profile)
 
     t = []
     CHO = []

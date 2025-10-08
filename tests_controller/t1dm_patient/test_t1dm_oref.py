@@ -50,12 +50,13 @@ def run_patient_with_oref0(
     logger.info(f"Patient {patient_name} initialized")
     if profile is not None:
         profile["carb_ratio"] = p.carb_ratio
+        profile["current_basal"] = p.basal * 60  # U/min to U/h
 
     # Initialize controller
-    ctrl = ORefZeroController(
-        current_basal=p.basal * 60,  # Convert U/min to U/h
-        profile=profile,
-    )
+    ctrl = ORefZeroController()
+    if not ctrl.initialize_patient(patient_name, profile=profile):
+        raise ValueError("Failed to initialize Oref0 controller")
+
     logger.info("ORef0 controller initialized")
 
     # Storage for simulation data

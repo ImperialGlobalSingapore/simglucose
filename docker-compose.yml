@@ -18,11 +18,11 @@ services:
 
   openaps:
     build:
-      context: ../igs_oref0
+      context: ../oref0
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     volumes:
-      - ../igs_oref0/server.js:/app/server.js
-      - ../igs_oref0/lib:/app/lib
+      - ../oref0/server.js:/app/server.js
+      - ../oref0/lib:/app/lib
     restart: unless-stopped

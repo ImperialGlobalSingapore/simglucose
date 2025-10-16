@@ -47,20 +47,21 @@ class ORefZeroController(Controller):
         self.last_insulin = {}  # patientId -> last insulin recommendation
 
         # Store the required profile
-        # Set default profile, but override defaults with any keys present in 'profile'
+        # Set default profile, but override defaults with any keys present in 'profile'\
+        # refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
         self.default_profile = {
             "current_basal": None,  # Current basal rate in U/h
-            "sens": 50,  # Insulin Sensitivity Factor (ISF)
-            "dia": 6,  # Duration of Insulin Action in hours
+            "sens": 45,  # Insulin Sensitivity Factor (ISF)
+            "dia": 7.0,  # Duration of Insulin Action in hours
             "carb_ratio": 10,  # Carb Ratio (g/U)
-            "max_iob": 6,  # Maximum insulin on board allowed
-            "max_basal": 3.5,  # Maximum temporary basal rate in U/h
-            "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day
-            "max_bg": 120,  # Upper target
-            "min_bg": 120,  # Lower target
-            "maxCOB": 120,  # Maximum carbs on board
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
-            "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
+            "max_iob": 12,  # Maximum insulin on board allowed， # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # Maximum temporary basal rate in U/h # from paper, max 10
+            "max_daily_basal": 0.9,  # Maximum daily basal rate in units per day # from paper
+            "max_bg": 140,  # Upper target
+            "min_bg": 90,  # Lower target
+            "maxCOB": 120,  # Maximum carbs on board  # from oref0 code
+            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
+            "min_5m_carbimpact": 8,  # Minimum carb absorption rate # from paper and oref0 code
             "type": "current",  # Profile type
         }
 

@@ -122,6 +122,10 @@ def step(patient_id: str, request: StepRequest):
 
     # Create controller observation - if attack scenario, use fake glucose data
     glucose_for_controller = request.attack_glucose if is_attack else request.glucose_reading
+    # print glucose reading from the phone
+    print(
+        f"Glucose reading for controller: {request.glucose_reading}, is attack: {is_attack}, Attack glucose: {request.attack_glucose}"
+    )
     ctrl_obs = CtrlObservation(glucose_for_controller)
 
     # Get controller action - reuse the same controller instance

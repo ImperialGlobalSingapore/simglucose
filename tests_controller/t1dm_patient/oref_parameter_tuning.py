@@ -14,7 +14,7 @@ from simglucose.controller.oref_zero import ORefZeroController
 
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
 from tests_controller.plot_utils import *
 
@@ -43,6 +43,7 @@ def patient_oref0(
     parameter_idx="0",
     profile=None,
     save_fig=False,
+    virtual_patient_id=None,
 ):
 
     p = T1DMPatient.withName(patient_name)
@@ -50,8 +51,14 @@ def patient_oref0(
     if profile is not None:
         profile["carb_ratio"] = p.carb_ratio
         profile["current_basal"] = p.basal * 60  # U/min to U/h
-    if not ctrl.initialize_patient(patient_name, profile=profile):
-        logger.error(f"Failed to initialize controller for patient {patient_name}")
+
+    # Use virtual patient ID for server communication if provided
+    patient_id_for_server = virtual_patient_id if virtual_patient_id else patient_name
+
+    if not ctrl.initialize_patient(patient_id_for_server, profile=profile):
+        logger.error(
+            f"Failed to initialize controller for patient {patient_id_for_server}"
+        )
         return None
 
     t = []
@@ -72,7 +79,7 @@ def patient_oref0(
             observation=ctrl_obs,
             reward=0,
             done=False,
-            patient_name=patient_name,
+            patient_name=patient_id_for_server,
             meal=carb,
             time=p.t,
         )
@@ -107,6 +114,7 @@ def patient_oref0(
         )
 
     return time_in_range
+
 
 def generate_profiles_by_group(group: PatientType):
     import numpy as np
@@ -150,12 +158,10 @@ def generate_profiles_by_group(group: PatientType):
         PatientType.CHILD: {
             "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
             "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
-            "carb_ratio": {"step_count": 3, "range": (15, 20)},  # ICR 1:15 to 1:20, gpt
         },
         PatientType.ADULT: {
             "sens": {"step_count": 3, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
             "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
-            "carb_ratio": {"step_count": 3, "range": (10, 15)},  # ICR 1:10 to 1:15, gpt
         },
     }
 
@@ -196,9 +202,44 @@ def generate_profiles_by_group(group: PatientType):
 
     return profiles
 
+
+def generate_patient_map(patients_by_group, num_profiles):
+    """
+    Generate a mapping from (patient_name, parameter_idx) to virtual patient ID.
+
+    Args:
+        patients_by_group: Dictionary of patient groups and their patient lists
+        num_profiles: Number of profiles per patient
+
+    Returns:
+        Dictionary mapping (patient_name, parameter_idx) -> virtual_patient_id
+    """
+    patient_map = {}
+
+    for group in patients_by_group.keys():
+        for patient_name in patients_by_group[group]:
+            # Create sanitized base name
+            base_name = patient_name.replace("#", "_")
+
+            for param_idx in range(num_profiles):
+                parameter_idx = str(param_idx)
+                # Create unique virtual patient ID
+                virtual_patient_id = f"{base_name}_param_{parameter_idx}"
+                patient_map[(patient_name, parameter_idx)] = virtual_patient_id
+
+    return patient_map
+
+
 def run_single_patient_test(args):
     """Helper function for parallel execution"""
-    patient_name, profile, scenario_val, img_save_dir, parameter_idx = args
+    (
+        patient_name,
+        profile,
+        scenario_val,
+        img_save_dir,
+        parameter_idx,
+        virtual_patient_id,
+    ) = args
     try:
         time_in_range = patient_oref0(
             patient_name=patient_name,
@@ -207,6 +248,7 @@ def run_single_patient_test(args):
             scenario=scenario_val,
             profile=profile,
             parameter_idx=parameter_idx,
+            virtual_patient_id=virtual_patient_id,
         )
         return (
             patient_name,
@@ -214,29 +256,29 @@ def run_single_patient_test(args):
             scenario_val,
             img_save_dir,
             parameter_idx,
+            virtual_patient_id,
             time_in_range,
         )
     except Exception as e:
-        return patient_name, profile, scenario_val, img_save_dir, parameter_idx, str(e)
-
-
-def run_patient_all_profiles(patient_configs):
-    """Run all profile tests for a single patient sequentially"""
-    results = []
-    for config in patient_configs:
-        result = run_single_patient_test(config)
-        results.append(result)
-    return results
+        return (
+            patient_name,
+            profile,
+            scenario_val,
+            img_save_dir,
+            parameter_idx,
+            virtual_patient_id,
+            str(e),
+        )
 
 
 def execute_tests_and_process_results(
-    patient_configs_dict, profile_keys, is_retry=False
+    patient_configs_list, profile_keys, is_retry=False
 ):
     """
     Execute tests in parallel and process results.
 
     Args:
-        patient_configs_dict: Dictionary mapping patient names to their config lists
+        patient_configs_list: List of patient test configurations
         profile_keys: List of profile keys for result dictionaries
         is_retry: Boolean indicating if this is a retry execution
 
@@ -244,124 +286,125 @@ def execute_tests_and_process_results(
         tuple: (results_list, failed_configs)
     """
     results_list = []
-    failed_configs = {}
+    failed_configs = []
 
     with ProcessPoolExecutor(
-        max_workers=min(multiprocessing.cpu_count(), len(patient_configs_dict))
+        max_workers=min(multiprocessing.cpu_count(), len(patient_configs_list))
     ) as executor:
+        # Submit all tests in parallel
         futures = [
-            executor.submit(run_patient_all_profiles, configs)
-            for patient_name, configs in patient_configs_dict.items()
+            executor.submit(run_single_patient_test, config)
+            for config in patient_configs_list
         ]
 
         for future in as_completed(futures):
-            patient_results = future.result()
+            result = future.result()
 
-            for result in patient_results:
-                if not is_retry:
-                    print(result)
+            if not is_retry:
+                print(result)
 
-                if isinstance(result, tuple) and len(result) == 6:
-                    patient_name = result[0]
-                    profile = result[1]
-                    scenario_val = result[2]
-                    img_save_dir = result[3]
-                    parameter_idx = result[4]
-                    time_in_range = result[5]
+            if isinstance(result, tuple) and len(result) == 7:
+                patient_name = result[0]
+                profile = result[1]
+                scenario_val = result[2]
+                img_save_dir = result[3]
+                parameter_idx = result[4]
+                virtual_patient_id = result[5]
+                time_in_range = result[6]
 
-                    if isinstance(time_in_range, str):
-                        if is_retry:
-                            status = "Failed_After_Retry"
-                            error_msg = f"Retry failed: {time_in_range}"
-                            print(
-                                f"  ❌ {patient_name} (param {parameter_idx}) - Still failing after retry"
-                            )
-                        else:
-                            status = "Failed"
-                            error_msg = f"Error: {time_in_range}"
-                        time_in_range = None
-
-                        # Add to failed configs for potential retry
-                        if not is_retry:  # Only collect failed configs on first run
-                            if patient_name not in failed_configs:
-                                failed_configs[patient_name] = []
-                            failed_configs[patient_name].append(
-                                (
-                                    patient_name,
-                                    profile,
-                                    scenario_val,
-                                    img_save_dir,
-                                    parameter_idx,
-                                )
-                            )
+                if isinstance(time_in_range, str):
+                    if is_retry:
+                        status = "Failed_After_Retry"
+                        error_msg = f"Retry failed: {time_in_range}"
+                        print(
+                            f"  ❌ {virtual_patient_id} (param {parameter_idx}) - Still failing after retry"
+                        )
                     else:
-                        if is_retry:
-                            status = "Completed_On_Retry"
-                            print(
-                                f"  ✅ {patient_name} (param {parameter_idx}) - Succeeded on retry"
-                            )
-                        else:
-                            status = "Completed"
-                        error_msg = None
-                else:
-                    # Unexpected result format
-                    status = "Failed_After_Retry" if is_retry else "Failed"
-                    patient_name = result[0] if len(result) > 0 else None
-                    profile = result[1] if len(result) > 1 else None
-                    scenario_val = result[2] if len(result) > 2 else None
-                    img_save_dir = result[3] if len(result) > 3 else None
-                    parameter_idx = result[4] if len(result) > 4 else None
-                    time_in_range = result[5] if len(result) > 5 else None
-                    error_msg = "Unexpected result format"
+                        status = "Failed"
+                        error_msg = f"Error: {time_in_range}"
+                    time_in_range = None
 
-                    if not is_retry:
-                        if patient_name not in failed_configs:
-                            failed_configs[patient_name] = []
-                        failed_configs[patient_name].append(
+                    # Add to failed configs for potential retry
+                    if not is_retry:  # Only collect failed configs on first run
+                        failed_configs.append(
                             (
                                 patient_name,
                                 profile,
                                 scenario_val,
                                 img_save_dir,
                                 parameter_idx,
+                                virtual_patient_id,
                             )
                         )
-
-                # Build result dict
-                result_dict = {"patient_name": patient_name}
-
-                # Add profile keys
-                if status in ["Completed", "Completed_On_Retry"] and isinstance(
-                    profile, dict
-                ):
-                    for key in profile_keys:
-                        result_dict[key] = profile.get(key)
                 else:
-                    for key in profile_keys:
-                        result_dict[key] = None
+                    if is_retry:
+                        status = "Completed_On_Retry"
+                        print(
+                            f"  ✅ {virtual_patient_id} (param {parameter_idx}) - Succeeded on retry"
+                        )
+                    else:
+                        status = "Completed"
+                    error_msg = None
+            else:
+                # Unexpected result format
+                status = "Failed_After_Retry" if is_retry else "Failed"
+                patient_name = result[0] if len(result) > 0 else None
+                profile = result[1] if len(result) > 1 else None
+                scenario_val = result[2] if len(result) > 2 else None
+                img_save_dir = result[3] if len(result) > 3 else None
+                parameter_idx = result[4] if len(result) > 4 else None
+                virtual_patient_id = result[5] if len(result) > 5 else None
+                time_in_range = result[6] if len(result) > 6 else None
+                error_msg = "Unexpected result format"
 
-                # Add remaining fields
-                result_dict.update(
-                    {
-                        "scenario": scenario_val.name if scenario_val else None,
-                        "parameter_idx": parameter_idx,
-                        "error_msg": error_msg if "Failed" in status else None,
-                        "very_high": (
-                            time_in_range.get("very_high") if time_in_range else None
-                        ),
-                        "high": time_in_range.get("high") if time_in_range else None,
-                        "target": (
-                            time_in_range.get("target") if time_in_range else None
-                        ),
-                        "low": time_in_range.get("low") if time_in_range else None,
-                        "very_low": (
-                            time_in_range.get("very_low") if time_in_range else None
-                        ),
-                        "status": status,
-                    }
-                )
+                if not is_retry:
+                    failed_configs.append(
+                        (
+                            patient_name,
+                            profile,
+                            scenario_val,
+                            img_save_dir,
+                            parameter_idx,
+                            virtual_patient_id,
+                        )
+                    )
 
-                results_list.append(result_dict)
+            # Build result dict
+            result_dict = {
+                "patient_name": patient_name,
+                "virtual_patient_id": virtual_patient_id,
+            }
+
+            # Add profile keys
+            if status in ["Completed", "Completed_On_Retry"] and isinstance(
+                profile, dict
+            ):
+                for key in profile_keys:
+                    result_dict[key] = profile.get(key)
+            else:
+                for key in profile_keys:
+                    result_dict[key] = None
+
+            # Add remaining fields
+            result_dict.update(
+                {
+                    "scenario": scenario_val.name if scenario_val else None,
+                    "parameter_idx": parameter_idx,
+                    "error_msg": error_msg if "Failed" in status else None,
+                    "very_high": (
+                        time_in_range.get("very_high") if time_in_range else None
+                    ),
+                    "high": time_in_range.get("high") if time_in_range else None,
+                    "target": (time_in_range.get("target") if time_in_range else None),
+                    "low": time_in_range.get("low") if time_in_range else None,
+                    "very_low": (
+                        time_in_range.get("very_low") if time_in_range else None
+                    ),
+                    "status": status,
+                }
+            )
+
+            results_list.append(result_dict)
 
     return results_list, failed_configs
 
@@ -377,7 +420,7 @@ if __name__ == "__main__":
     that it has a realistic time-in-range distribution following the paper
     """
 
-    scenarios = [Scenario.THREE_DAY]
+    scenarios = [Scenario.ONE_DAY]
 
     # patients_by_group = {
     #     PatientType.CHILD: ["child#002", "child#008", "child#010"],
@@ -397,33 +440,51 @@ if __name__ == "__main__":
             parameter_idx = str(idx)
             combined_profiles[group][parameter_idx] = profile
 
-    # Prepare all test configurations grouped by patient
-    patient_configs = {}
+    # Calculate number of profiles
+    first_group = list(patients_by_group.keys())[0]
+    num_profiles = len(patient_profiles_by_group[first_group])
+
+    # Generate patient map for virtual patient IDs
+    patient_map = generate_patient_map(patients_by_group, num_profiles)
+    print(f"\nGenerated patient map with {len(patient_map)} virtual patient IDs:")
+    for (patient_name, param_idx), virtual_id in patient_map.items():
+        print(f"  {patient_name} + param {param_idx} -> {virtual_id}")
+
+    # Prepare all test configurations as a flat list (all run in parallel)
+    patient_configs = []
     for group in patients_by_group.keys():
         for patient_name in patients_by_group[group]:
-            patient_configs[patient_name] = []
             # Create patient folder upfront
             for parameter_idx, profile_data in combined_profiles[group].items():
                 patient_folder = patient_name.replace("#", "_")
+                # Get virtual patient ID from map
+                virtual_patient_id = patient_map[(patient_name, parameter_idx)]
                 for sc in scenarios:
                     patient_dir = test_patient_dir / patient_folder / sc.value
                     patient_dir.mkdir(exist_ok=True, parents=True)
                     print(f"Created directory: {patient_dir}")
-                    patient_configs[patient_name].append(
-                        (patient_name, profile_data, sc, patient_dir, parameter_idx)
+                    patient_configs.append(
+                        (
+                            patient_name,
+                            profile_data,
+                            sc,
+                            patient_dir,
+                            parameter_idx,
+                            virtual_patient_id,
+                        )
                     )
 
     # Calculate total configurations
-    total_configs = sum(len(configs) for configs in patient_configs.values())
+    total_configs = len(patient_configs)
 
-    # Run tests in parallel (by patient, profiles sequential within each patient)
+    # Run tests in parallel (all virtual patients run in parallel)
+    num_workers = min(multiprocessing.cpu_count(), total_configs)
     print(
-        f"\n🚀 Starting parallel tests for {total_configs} configurations across {len(patient_configs)} patients..."
+        f"\n🚀 Starting parallel tests for {total_configs} configurations (all virtual patients in parallel)..."
     )
-    print(f"Using {min(multiprocessing.cpu_count(), len(patient_configs))} CPU cores\n")
+    print(f"Using {num_workers} CPU cores\n")
 
-    # Get profile keys from the first generated profile
-    first_group = list(patients_by_group.keys())[0]
+    # Get profile keys from the first generated profile (already set earlier)
     profile_keys = [k for k in patient_profiles_by_group[first_group][0].keys()]
 
     # Run initial tests
@@ -435,9 +496,7 @@ if __name__ == "__main__":
 
     # Retry failed tests if any
     if failed_configs:
-        print(
-            f"\n🔄 Retrying {sum(len(configs) for configs in failed_configs.values())} failed configurations..."
-        )
+        print(f"\n🔄 Retrying {len(failed_configs)} failed configurations...")
 
         # Run retry tests
         retry_results, _ = execute_tests_and_process_results(
@@ -450,6 +509,8 @@ if __name__ == "__main__":
             for i, original_result in enumerate(results_list):
                 if (
                     original_result["patient_name"] == retry_result["patient_name"]
+                    and original_result["virtual_patient_id"]
+                    == retry_result["virtual_patient_id"]
                     and original_result["parameter_idx"]
                     == retry_result["parameter_idx"]
                     and original_result["scenario"] == retry_result["scenario"]
@@ -466,6 +527,7 @@ if __name__ == "__main__":
     # Save results to CSV
     fieldnames = [
         "patient_name",
+        "virtual_patient_id",
         *profile_keys,
         "scenario",
         "parameter_idx",

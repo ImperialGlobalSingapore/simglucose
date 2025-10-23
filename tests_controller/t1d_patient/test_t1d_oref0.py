@@ -13,8 +13,11 @@ from simglucose.patient.t1dpatient_2 import T1DPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController
 from simglucose.simulation.scenario_simple import Scenario
 from simglucose.utils import fetch_patient_quest
+import sys
 
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from tests_controller.plot_utils import *
+from tests_controller.t1d_patient.utils import get_patient_by_group
 
 # Configure logger
 logger = logging.getLogger(__name__)

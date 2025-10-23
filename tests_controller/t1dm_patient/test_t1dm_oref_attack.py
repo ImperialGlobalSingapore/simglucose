@@ -8,14 +8,9 @@ matplotlib.use("Agg")  # Use non-interactive backend to prevent window pop-ups
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController
-
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
-from plot_utils import plot_and_save_with_tir
+from glucose_control_analytics import TIRConfig, plot_and_save_with_tir
 from bg_attacker import BGAttacker
-from tests_controller.time_in_range_config import TIRConfig
 
 
 # Configure logger

@@ -6,10 +6,7 @@ from test_t1dpatient_pid import (
     run_sim_simple_pid_no_meal,
     run_sim_simple_pid_single_meal,
 )
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from simglucose.patient.t1dm_patient import PatientType
+from glucose_control_analytics import PatientType
 from simglucose.simulation.scenario_simple import Scenario
 from tests_controller.t1d_patient.utils import get_patient_by_group as _get_patient_by_group
 

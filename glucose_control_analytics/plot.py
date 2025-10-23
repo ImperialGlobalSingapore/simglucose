@@ -1,15 +1,31 @@
+"""
+Plotting utilities for glucose control analytics.
+
+This module provides functions to visualize blood glucose, carbohydrate intake,
+and insulin delivery data, with optional time-in-range visualizations.
+"""
+
 from pathlib import Path
-import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from tests_controller.time_in_range_config import TIRCategory, TIRConfig
+from .time_in_range import TIRCategory, TIRConfig
 
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
+    """
+    Internal function to create the main BG/CHO/insulin plots.
+
+    Args:
+        fig: Matplotlib figure
+        ax: List of 3 matplotlib axes
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+    """
     ax[0].plot(t, BG)
     ax[0].plot(t, [target_BG] * len(t), "r--", label="Target BG")
     ax[0].plot(t, [70] * len(t), "b--", label="Hypoglycemia")
@@ -251,38 +267,3 @@ def plot_and_save_with_tir(t, BG, CHO, insulin, target_BG, file_name, time_in_ra
     fig = _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config)
     fig.savefig(f"{file_name}")
     plt.close(fig)
-
-
-def save_to_csv(log_dir, t, BG, CHO, insulin, file_name):
-    csv_file = log_dir / f"{file_name}.csv"
-    with open(csv_file, "w") as f:
-        f.write("time,CHO,insulin,BG\n")
-        for i in range(len(t)):
-            f.write(f"{t[i]},{CHO[i]},{insulin[i]},{BG[i]}\n")
-
-
-def get_rmse(BG, target_BG):
-    BG = np.array(BG)
-    target_BG = np.array(target_BG)
-    return np.sqrt(np.mean((BG - target_BG) ** 2))
-
-
-def eval_result(BG, target_BG, k_P, k_I, k_D, sample_time):
-    print(f"k_P: {k_P}, k_I: {k_I}, k_D: {k_D}, sample_time: {sample_time}")
-    target_BG = np.array(target_BG)
-    BG = np.array(BG)
-    errors = target_BG - BG
-    max_e = np.abs(errors).max()
-    mae = np.mean(np.abs(errors))  # mean absolute error
-    mse = np.mean(errors**2)  # mean square error
-    rmse = np.sqrt(mse)  # root mean square error
-    iae = np.sum(np.abs(errors) * sample_time)  # integrated absolute error
-    ise = np.sum(errors**2 * sample_time)  # integrated square error
-    return {
-        "MAX_E": max_e,
-        "MAE": mae,
-        "MSE": mse,
-        "RMSE": rmse,
-        "IAE": iae,
-        "ISE": ise,
-    }

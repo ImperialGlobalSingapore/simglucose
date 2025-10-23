@@ -7,18 +7,12 @@ and testing example.
 """
 
 import logging
-from pathlib import Path
 from collections import namedtuple
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action, PatientType
 from simglucose.controller.oref_zero import ORefZeroController
-
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
-from tests_controller.plot_utils import plot_and_show_with_tir
-from tests_controller.time_in_range_config import TIRConfig
+from glucose_control_analytics import TIRConfig, plot_and_show_with_tir
 
 # Configure logger
 logger = logging.getLogger(__name__)

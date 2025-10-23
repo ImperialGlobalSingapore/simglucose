@@ -1,11 +1,12 @@
 """
 Time in Range (TIR) configuration and standards.
 
-This module defines different TIR standards and thresholds used across the project.
+This module defines different TIR standards and thresholds for glucose control analytics.
+It can be used independently with any glucose monitoring system.
 """
 
 from enum import Enum
-from simglucose.patient.t1dm_patient import PatientType
+from .patient_types import PatientType
 
 
 class TIRCategory(Enum):
@@ -73,7 +74,7 @@ class TIRConfig:
 
     # Refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
     # Acceptable ranges from paper (mean±SD) as percentages (0-100)
-
+    # children aged 7-15, adult aged 16-70
     # | Patient Group | Extreme High (>250) level 2 hyperglycemia | High (180-250) level 1 hyperglycemia | Target (70-180) (SD) | Low (<70) hypoglycemia |
     # | ------------- | ----------------------------------------- | ------------------------------------ | -------------------- | ---------------------- |
     # | Children      | 9.3±6.0                                   | 21.1±6.8                             | 67.5±11.5            | 2.1±1.5                |

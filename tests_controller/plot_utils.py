@@ -1,12 +1,12 @@
 from pathlib import Path
-import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-
-from simglucose.patient.t1dpatient import PATIENT_PARA_FILE
-from simglucose.patient.t1dm_patient import PatientType
-from simglucose.simulation.scenario_simple import Scenario
+import matplotlib.pyplot as plt
 from matplotlib import gridspec
+
+import sys
+
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from tests_controller.time_in_range_config import TIRCategory, TIRConfig
 
 
 def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
@@ -29,51 +29,43 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     fig.tight_layout()
 
 
-def _plot_time_in_range_scale(scale_ax, time_in_range):
+def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
     """
     Plot time in range scale bar on the given axis.
 
     Args:
         scale_ax: Matplotlib axis for the scale bar
-        time_in_range: Dict with time in range statistics
+        time_in_range: Dict with time in range statistics (using TIRCategory enum as keys)
+        tir_config: TIRConfig instance to use for getting thresholds and order
     """
     scale_ax.axis("off")
 
-    # Define colors for each range category
-    colors = {
-        "very_high": "#FF6B35",
-        "high": "#FFB347",
-        "target": "#32CE13",
-        "low": "#DB2020",
-        "very_low": "#8B0000",
-    }
+    # Get colors and order from TIRConfig instance
+    order = tir_config.get_order()
+    thresholds = tir_config.get_thresholds()
 
     # Create vertical stacked bar
     x_position = 0
     bar_width = 0.8
     bottom = 0
 
-    # Define order (bottom to top)
-    order = ["very_low", "low", "target", "high", "very_high"]
-
     # Draw each segment in specified order
-    for key in order:
-        if key in time_in_range:
-            percentage = time_in_range[key] * 100  # Convert to percentage
-            if (
-                percentage > 0 and key in colors
-            ):  # Only draw if percentage > 0 and color exists
+    for category in order:
+        if category in time_in_range:
+            percentage = time_in_range[category]  # Already in percentage (0-100)
+            if percentage > 0:  # Only draw if percentage > 0
+                color = tir_config.get_color(category)
                 scale_ax.bar(
                     x_position,
                     percentage,
                     bottom=bottom,
                     width=bar_width,
-                    color=colors[key],
+                    color=color,
                     edgecolor="white",
                     linewidth=1,
                 )
 
-                # Add text label (option 1: centered inside bar segment)
+                # Add text label (centered inside bar segment)
                 scale_ax.text(
                     x_position,
                     bottom + percentage / 2,
@@ -87,27 +79,18 @@ def _plot_time_in_range_scale(scale_ax, time_in_range):
 
                 bottom += percentage
 
-    # Add threshold labels at boundaries between sections
-    thresholds = {
-        "very_low": 0,  # Starting point
-        "low": 54,  # Between very_low and low
-        "target": 70,  # Between low and target
-        "high": 180,  # Between target and high
-        "very_high": 250,  # Between high and very_high
-    }
-
-    # Calculate cumulative heights for positioning
+    # Calculate cumulative heights for positioning threshold labels
     cumulative_height = 0
-    for key in order:
-        if key in time_in_range:
-            percentage = time_in_range[key] * 100
+    for category in order:
+        if category in time_in_range:
+            percentage = time_in_range[category]  # Already in percentage (0-100)
             if percentage > 0:
                 # Add threshold label at the bottom of this section
-                if key != "very_low":  # Don't show 0 at the bottom
+                if category != TIRCategory.VERY_LOW:  # Don't show 0 at the bottom
                     scale_ax.text(
                         x_position - bar_width / 2 - 0.1,
                         cumulative_height,
-                        f"{thresholds[key]}",
+                        f"{thresholds[category]}",
                         ha="right",
                         va="center",
                         fontsize=8,
@@ -116,14 +99,14 @@ def _plot_time_in_range_scale(scale_ax, time_in_range):
                 cumulative_height += percentage
 
                 # Add top edge threshold for this section
-                next_key_index = order.index(key) + 1
+                next_key_index = order.index(category) + 1
                 if next_key_index < len(order):
-                    next_key = order[next_key_index]
+                    next_category = order[next_key_index]
                     # Always show the threshold, regardless of whether next section exists
                     scale_ax.text(
                         x_position - bar_width / 2 - 0.1,
                         cumulative_height,
-                        f"{thresholds[next_key]}",
+                        f"{thresholds[next_category]}",
                         ha="right",
                         va="center",
                         fontsize=8,
@@ -136,9 +119,9 @@ def _plot_time_in_range_scale(scale_ax, time_in_range):
     scale_ax.set_title("Time in Range", fontsize=12)
 
 
-def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range=None):
+def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title):
     """
-    Create a complete plot figure with optional time in range scale.
+    Create a basic plot figure without time in range scale.
 
     Args:
         t: Time array
@@ -147,12 +130,39 @@ def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range
         insulin: Insulin array
         target_BG: Target blood glucose value
         fig_title: Title for the figure
-        time_in_range: Optional dict with time in range statistics
 
     Returns:
         matplotlib.figure.Figure: The created figure
     """
-    # Create figure with gridspec layout (consistent for both cases)
+    fig = plt.figure(figsize=(12, 10))
+    ax0 = fig.add_subplot(3, 1, 1)
+    ax1 = fig.add_subplot(3, 1, 2, sharex=ax0)
+    ax2 = fig.add_subplot(3, 1, 3, sharex=ax0)
+
+    axes = [ax0, ax1, ax2]
+    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+
+    return fig
+
+
+def _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config):
+    """
+    Create a plot figure with time in range scale.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+
+    Returns:
+        matplotlib.figure.Figure: The created figure
+    """
+    # Create figure with gridspec layout for TIR scale
     fig = plt.figure(figsize=(15, 10))
     gs = gridspec.GridSpec(
         3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.05
@@ -165,18 +175,15 @@ def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range
     axes = [ax0, ax1, ax2]
     _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
 
-    # Add time in range scale bar if provided, otherwise hide the axis
-    if time_in_range is not None:
-        _plot_time_in_range_scale(scale_ax, time_in_range)
-    else:
-        scale_ax.axis("off")
+    # Add time in range scale bar
+    _plot_time_in_range_scale(scale_ax, time_in_range, tir_config)
 
     return fig
 
 
-def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title, time_in_range=None):
+def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title):
     """
-    Display plot with optional time in range scale bar.
+    Display plot without time in range scale bar.
 
     Args:
         t: Time array
@@ -185,15 +192,32 @@ def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title, time_in_range=None)
         insulin: Insulin array
         target_BG: Target blood glucose value
         fig_title: Title for the figure
-        time_in_range: Optional dict with time in range statistics
     """
-    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range)
+    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title)
     plt.show()
 
 
-def plot_and_save(t, BG, CHO, insulin, target_BG, file_name, time_in_range=None):
+def plot_and_show_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config):
     """
-    Save plot to file with optional time in range scale bar.
+    Display plot with time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+    """
+    fig = _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config)
+    plt.show()
+
+
+def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
+    """
+    Save plot to file without time in range scale bar.
 
     Args:
         t: Time array
@@ -202,10 +226,29 @@ def plot_and_save(t, BG, CHO, insulin, target_BG, file_name, time_in_range=None)
         insulin: Insulin array
         target_BG: Target blood glucose value
         file_name: Path to save the figure
-        time_in_range: Optional dict with time in range statistics
     """
     fig_title = Path(file_name).stem
-    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title, time_in_range)
+    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title)
+    fig.savefig(f"{file_name}")
+    plt.close(fig)
+
+
+def plot_and_save_with_tir(t, BG, CHO, insulin, target_BG, file_name, time_in_range, tir_config):
+    """
+    Save plot to file with time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        CHO: Carbohydrate array
+        insulin: Insulin array
+        target_BG: Target blood glucose value
+        file_name: Path to save the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+    """
+    fig_title = Path(file_name).stem
+    fig = _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config)
     fig.savefig(f"{file_name}")
     plt.close(fig)
 
@@ -243,48 +286,3 @@ def eval_result(BG, target_BG, k_P, k_I, k_D, sample_time):
         "IAE": iae,
         "ISE": ise,
     }
-
-
-def get_patients():
-    patient_params = pd.read_csv(PATIENT_PARA_FILE)
-    return patient_params.Name.tolist()
-
-
-def get_patient_by_group(patient_type: PatientType):
-    if patient_type == PatientType.ADOLESCENT:
-        return [f"adolescent#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.ADULT:
-        return [f"adult#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.CHILD:
-        return [f"child#00{i}" for i in range(1, 10)]
-
-
-def calculate_time_in_range(BG_values):
-    """
-    Calculate time in range statistics for blood glucose values.
-
-    Args:
-        BG_values: List of blood glucose readings in mg/dL
-
-    Returns:
-        Dictionary with percentages for each range category
-    """
-    time_in_range = {"very_high": 0, "high": 0, "target": 0, "low": 0, "very_low": 0}
-
-    for bg in BG_values:
-        if bg > 250:
-            time_in_range["very_high"] += 1
-        elif bg > 180:
-            time_in_range["high"] += 1
-        elif bg > 70:
-            time_in_range["target"] += 1
-        elif bg > 54:
-            time_in_range["low"] += 1
-        else:
-            time_in_range["very_low"] += 1
-
-    # Convert to percentages, only include non-zero values
-    total = len(BG_values)
-    time_in_range = {k: v / total for k, v in time_in_range.items() if v > 0}
-
-    return time_in_range

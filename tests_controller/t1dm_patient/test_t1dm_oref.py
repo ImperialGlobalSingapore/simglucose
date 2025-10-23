@@ -10,14 +10,15 @@ import logging
 from pathlib import Path
 from collections import namedtuple
 
-from simglucose.patient.t1dm_patient import T1DMPatient, Action
+from simglucose.patient.t1dm_patient import T1DMPatient, Action, PatientType
 from simglucose.controller.oref_zero import ORefZeroController
 
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
+sys.path.append(str(Path(__file__).parent.parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
-from tests_controller.plot_utils import calculate_time_in_range, plot_and_show
+from tests_controller.plot_utils import plot_and_show_with_tir
+from tests_controller.time_in_range_config import TIRConfig
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -109,23 +110,25 @@ def run_patient_with_oref0(
                 f"CHO: {carb}g, Insulin: {ins:.3f} U/min"
             )
 
-    # Calculate time in range statistics
-    time_in_range = calculate_time_in_range(BG)
+    # Calculate time in range statistics using BASIC standard
+    tir_config = TIRConfig()  # Defaults to BASIC standard
+    time_in_range = tir_config.calculate_time_in_range(BG)
 
     logger.info("\n=== Time in Range Results ===")
     for category, percentage in time_in_range.items():
-        logger.info(f"{category}: {percentage*100:.1f}%")
+        logger.info(f"{category.value}: {percentage:.1f}%")
 
     # Display plot if requested
     if show_plot:
-        plot_and_show(
+        plot_and_show_with_tir(
             t,
             BG,
             CHO,
             insulin,
             ctrl.target_bg,
             f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
-            time_in_range=time_in_range,
+            time_in_range,
+            tir_config,
         )
 
     return time_in_range
@@ -152,9 +155,17 @@ if __name__ == "__main__":
         "min_5m_carbimpact": 8,  # from paper and oref0 code
     }
 
-    run_patient_with_oref0(
+    time_in_range = run_patient_with_oref0(
         patient_name="adult#007",
         scenario=Scenario.ONE_DAY,
         profile=custom_profile,
         show_plot=True,
     )
+
+    # Check if time in range is acceptable using BASIC standard
+    tir_config = TIRConfig()  # Defaults to BASIC standard
+    results, count = tir_config.is_time_in_range_acceptable(time_in_range, PatientType.ADULT)
+    print(f"TIR Acceptable: {count}/{len(results)} categories within range")
+    print(f"Details: {results}")
+
+    print("done")

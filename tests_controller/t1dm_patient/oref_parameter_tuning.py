@@ -16,7 +16,8 @@ import sys
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
-from tests_controller.plot_utils import *
+from tests_controller.plot_utils import plot_and_save_with_tir
+from tests_controller.time_in_range_config import TIRConfig
 
 matplotlib.use("Agg")  # Use non-interactive backend to prevent window pop-ups
 
@@ -97,20 +98,22 @@ def patient_oref0(
             f"\033[94mt: {p.t_elapsed}, t: {p.t} BG: {p.observation.Gsub}, CHO: {carb}, Insulin: {ins}\033[0m"
         )
 
-    time_in_range = calculate_time_in_range(BG)
+    tir_config = TIRConfig()  # Defaults to BASIC standard
+    time_in_range = tir_config.calculate_time_in_range(BG)
 
     sanitized_patient_name = patient_name.replace("#", "_")
     fig_title = f"test_patient_{sanitized_patient_name}_{scenario.name}_param_set_{parameter_idx}"
     if save_fig:
         file_name = img_save_dir / f"{fig_title}.png"
-        plot_and_save(
+        plot_and_save_with_tir(
             t,
             BG,
             CHO,
             insulin,
             ctrl.target_bg,
             file_name,
-            time_in_range=time_in_range,
+            time_in_range,
+            tir_config,
         )
 
     return time_in_range

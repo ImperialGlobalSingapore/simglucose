@@ -11,10 +11,11 @@ from simglucose.controller.oref_zero import ORefZeroController
 
 import sys
 
-sys.path.append(str(Path(__file__).parent.parent))
-from simglucose.simulation import scenario
-from plot_utils import *
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from simglucose.simulation.scenario_simple import Scenario
+from plot_utils import plot_and_save_with_tir
 from bg_attacker import BGAttacker
+from tests_controller.time_in_range_config import TIRConfig
 
 
 # Configure logger
@@ -101,20 +102,22 @@ def patient_oref0(
             f"\033[94mt: {p.t_elapsed}, t: {p.t} BG: {glucose}, CHO: {carb}, Insulin: {ins}\033[0m"
         )
 
-    time_in_range = calculate_time_in_range(BG)
+    tir_config = TIRConfig()  # Defaults to BASIC standard
+    time_in_range = tir_config.calculate_time_in_range(BG)
 
     sanitized_patient_name = patient_name.replace("#", "_")
     fig_title = f"test_patient_{sanitized_patient_name}_{scenario.name}"
     if save_fig:
         file_name = img_save_dir / f"{fig_title}.png"
-        plot_and_save(
+        plot_and_save_with_tir(
             t,
             BG,
             CHO,
             insulin,
             ctrl.target_bg,
             file_name,
-            time_in_range=time_in_range,
+            time_in_range,
+            tir_config,
         )
 
     return time_in_range

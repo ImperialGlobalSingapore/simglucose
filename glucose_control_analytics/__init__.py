@@ -7,6 +7,7 @@ A standalone package for glucose control analytics, providing tools for:
 - Patient type definitions for diabetes management
 - Statistical metrics for control performance evaluation
 - File I/O utilities for saving data
+- Parallel simulation framework for closed-loop testing
 
 This package can be used independently with any glucose monitoring and control system.
 """
@@ -28,6 +29,7 @@ from .metrics import (
     get_ise,
 )
 from .file_io import save_to_csv
+from .openaps_parameter_tuning import OpenAPSParameterTuningBase
 
 __all__ = [
     # Patient types
@@ -50,6 +52,8 @@ __all__ = [
     "get_ise",
     # File I/O
     "save_to_csv",
+    # Parallel simulation
+    "OpenAPSParameterTuningBase",
 ]
 
 __version__ = "1.0.0"

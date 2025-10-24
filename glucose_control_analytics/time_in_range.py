@@ -184,7 +184,7 @@ class TIRConfig:
 
         return time_in_range
 
-    def is_time_in_range_acceptable(
+    def get_time_in_range_acceptance(
         self,
         time_in_range,
         patient_group: PatientType,

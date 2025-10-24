@@ -9,10 +9,10 @@ and testing example.
 import logging
 from collections import namedtuple
 
-from simglucose.patient.t1dm_patient import T1DMPatient, Action, PatientType
+from simglucose.patient.t1dm_patient import T1DMPatient, Action
 from simglucose.controller.oref_zero import ORefZeroController
 from simglucose.simulation.scenario_simple import Scenario
-from glucose_control_analytics import TIRConfig, plot_and_show_with_tir
+from glucose_control_analytics import TIRConfig, plot_and_show_with_tir, PatientType
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -158,7 +158,9 @@ if __name__ == "__main__":
 
     # Check if time in range is acceptable using BASIC standard
     tir_config = TIRConfig()  # Defaults to BASIC standard
-    results, count = tir_config.is_time_in_range_acceptable(time_in_range, PatientType.ADULT)
+    results, count = tir_config.get_time_in_range_acceptance(
+        time_in_range, PatientType.ADULT
+    )
     print(f"TIR Acceptable: {count}/{len(results)} categories within range")
     print(f"Details: {results}")
 

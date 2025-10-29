@@ -41,7 +41,7 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     ax[2].set_xlabel("Time (min)")
     fig.subplots_adjust(bottom=0.15)
     fig.legend(loc="lower center", ncol=3)
-    fig.suptitle(f"PID Controller: {fig_title}")
+    fig.suptitle(f"{fig_title}")
     fig.tight_layout()
 
 

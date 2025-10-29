@@ -139,6 +139,67 @@ class T1DMPatient(Patient):
         observation = Observation(Gsub=Gsub)
         return observation
 
+    def get_iob(self, include_plasma=False, subtract_baseline=False):
+        """
+        Calculate Insulin on Board (IOB) from patient model state variables.
+
+        Args:
+            include_plasma: If True, includes plasma insulin in IOB calculation
+            subtract_baseline: If True, subtracts steady-state baseline basal IOB
+                             to make it comparable with OpenAPS IOB (which only counts
+                             insulin above baseline basal rate)
+
+        Returns:
+            float: IOB in Units (U)
+
+        Notes:
+            The patient model tracks insulin in different compartments (in pmol/kg):
+            - state[10]: Subcutaneous insulin compartment 1
+            - state[11]: Subcutaneous insulin compartment 2
+            - state[5]: Plasma insulin (optional)
+
+            IOB calculation:
+            IOB (U) = (Isc1 + Isc2 [+ Ip]) * BW / 6000
+
+            where BW is body weight in kg, and 6000 is the pmol to U conversion factor.
+
+            When subtract_baseline=True:
+            Uses the steady-state insulin (x0) as baseline, which represents the
+            insulin present from continuous basal delivery at equilibrium.
+        """
+        try:
+            # Subcutaneous insulin compartments (pmol/kg)
+            isc1 = self.state[10]
+            isc2 = self.state[11]
+
+            iob_pmol_kg = isc1 + isc2
+
+            # Optionally include plasma insulin
+            if include_plasma:
+                ip = self.state[5]
+                iob_pmol_kg += ip
+
+            # Subtract baseline if requested (to match OpenAPS IOB)
+            if subtract_baseline:
+                # Get baseline from initial steady state (x0)
+                baseline_isc1 = self._params.x0[10]
+                baseline_isc2 = self._params.x0[11]
+                baseline_pmol_kg = baseline_isc1 + baseline_isc2
+
+                if include_plasma:
+                    baseline_pmol_kg += self._params.x0[5]
+
+                # Subtract baseline to get IOB above baseline
+                iob_pmol_kg = iob_pmol_kg - baseline_pmol_kg
+
+            # Convert to Units: (pmol/kg) * kg / (pmol/U) = U
+            iob_units = iob_pmol_kg * self.body_weight / 6000.0
+
+            return iob_units
+        except Exception as e:
+            logger.error(f"Error calculating patient model IOB: {str(e)}")
+            return None
+
     def _announce_meal(self, meal):
         """
         patient announces meal.

@@ -45,6 +45,8 @@ class ORefZeroController(Controller):
         self.pump_history = {}  # patientId -> list of pump events
         self.collect_meal = {}  # patientId -> accumulated meal amount
         self.last_insulin = {}  # patientId -> last insulin recommendation
+        self.last_iob = {}  # patientId -> last IOB (Insulin on Board) data
+        self.last_policy_context = {}  # patientId -> full context from last calculation
 
         # Store the required profile
         # Set default profile, but override defaults with any keys present in 'profile'\
@@ -141,6 +143,7 @@ class ORefZeroController(Controller):
             self.last_glucose_time[patient_name] = None
             self.collect_meal[patient_name] = 0
             self.last_insulin[patient_name] = {"basal": 0.0, "bolus": 0.0}
+            self.last_iob[patient_name] = {}
 
             logger.info(f"Patient {patient_name} initialized successfully")
             return True
@@ -245,6 +248,16 @@ class ORefZeroController(Controller):
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
 
+        # Add pump history entries (insulin deliveries from previous actions)
+        # We'll collect all pump events since last update
+        if (
+            patient_name in self.pump_history
+            and len(self.pump_history[patient_name]) > 0
+        ):
+            new_data["pumpHistory"] = self.pump_history[patient_name].copy()
+            # Clear the pump history after sending
+            self.pump_history[patient_name] = []
+
         return new_data
 
     def policy(
@@ -323,6 +336,7 @@ class ORefZeroController(Controller):
         # Extract recommendation
         suggestion = response.get("suggestion", {})
         basal_rate = response.get("IIR", 0.0) / 60  # U/h -> U/min
+        iob_data = response.get("context", {}).get("iob", {})
 
         # Calculate bolus recommendation
         # OpenAPS typically provides basal adjustments, bolus calculation
@@ -337,15 +351,27 @@ class ORefZeroController(Controller):
         if "microbolus" in suggestion:
             bolus_amount += suggestion.get("microbolus", 0.0)
 
+        # Extract IOB value for logging (iob_data contains the full IOB object)
+        iob_value = iob_data.get("iob", 0.0) if iob_data else 0.0
+        max_iob = self.patient_profiles[patient_name]["max_iob"]
+
         # Log the recommendation
         logger.debug(
             f"Patient {patient_name}: BG={glucose_level:.1f}, "
-            f"Meal={meal:.1f}g, Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
+            f"Meal={meal:.1f}g, IOB={iob_value:.2f}U (max={max_iob:.1f}), "
+            f"Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
         )
 
-        # Store the last glucose time and insulin recommendation
+        # Store the last glucose time, insulin recommendation, and IOB
         self.last_glucose_time[patient_name] = timestamp
         self.last_insulin[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob[patient_name] = iob_data
+
+        # Store policy context with IOB-related values
+        self.last_policy_context[patient_name] = {
+            "iob_value": iob_value,  # OpenAPS calculated IOB
+            "max_iob": max_iob,  # Safety limit from profile
+        }
 
         return Action(basal=basal_rate, bolus=bolus_amount)
 
@@ -397,3 +423,28 @@ class ORefZeroController(Controller):
         except Exception as e:
             logger.error(f"Server health check failed: {str(e)}")
             return False
+
+    def get_patient_iob(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get IOB-related values for a patient from OpenAPS calculation
+
+        Returns:
+            Dict with keys:
+                - iob_value: OpenAPS calculated total IOB (float)
+                - max_iob: Maximum allowed IOB from profile (float)
+
+        Note:
+            To get the patient model's physiological IOB, use patient.get_iob()
+            method on the T1DMPatient instance in your simulation loop.
+        """
+        patient_name = patient_name.replace("#", "")
+        context = self.last_policy_context.get(patient_name)
+        return context if context else None
+
+    def get_policy_context(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the full policy context from last calculation
+
+        Returns same as get_patient_iob (they return the same data)
+        """
+        return self.get_patient_iob(patient_name)

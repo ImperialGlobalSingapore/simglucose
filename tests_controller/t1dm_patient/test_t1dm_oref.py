@@ -172,7 +172,7 @@ def run_patient_with_oref0(
         # Get IOB from patient model (physiological)
         # Use subtract_baseline=True to make it comparable with OpenAPS IOB
         # (both will measure insulin above baseline basal)
-        model_iob = p.get_iob(include_plasma=False, subtract_baseline=False)
+        model_iob = p.get_iob(include_plasma=True, subtract_baseline=False)
         patient_model_iob.append(model_iob if model_iob is not None else 0.0)
 
         # Get IOB from OpenAPS controller

@@ -306,9 +306,8 @@ class ORefZeroController(Controller):
         ):
             return Action(
                 basal=self.last_insulin[patient_name]["basal"],
-                bolus=self.last_insulin[patient_name]["bolus"]
+                bolus=self.last_insulin[patient_name]["bolus"],
             )
-            # return Action(basal=0, bolus=0)
 
         # Extract glucose level
         glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0

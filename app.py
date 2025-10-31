@@ -50,6 +50,8 @@ class StepResponse(BaseModel):
     attack_scenario: bool = False  # Added: flag for attack scenario
     real_glucose: Optional[float] = None  # Added: real glucose value
     attack_glucose: Optional[float] = None  # Added: attack glucose value
+    patient_iob: Optional[float] = None  # Added: IOB from patient physiological model
+    openaps_iob: Optional[float] = None  # Added: IOB from OpenAPS algorithm
 
 # Create FastAPI app
 app = FastAPI(title="Glucose Simulation API")
@@ -150,10 +152,23 @@ def step(patient_id: str, request: StepRequest):
     # Get new glucose level
     glucose = patient.observation.Gsub
 
+    # Get IOB from patient model (physiological)
+    # Use subtract_baseline=False to match OpenAPS comparison
+    patient_iob_value = patient.get_iob(include_plasma=True, subtract_baseline=False)
+    patient_iob_value = patient_iob_value if patient_iob_value is not None else 0.0
+
+    # Get IOB from OpenAPS controller (if using openaps)
+    openaps_iob_value = None
+    if isinstance(ctrl, ORefZeroController):
+        openaps_iob_data = ctrl.get_patient_iob(patient.name)
+        openaps_iob_value = openaps_iob_data["iob_value"] if openaps_iob_data else 0.0
+
     # Build response
     response = {
         "glucose": glucose,
-        "insulin": insulin
+        "insulin": insulin,
+        "patient_iob": patient_iob_value,
+        "openaps_iob": openaps_iob_value,
     }
 
     # If attack scenario, add additional information

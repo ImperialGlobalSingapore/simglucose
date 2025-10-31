@@ -14,6 +14,13 @@ __pycache__/
 /*.egg
 *.zip
 
+# virtual environment folders.
+.env/
+.venv/
+venv/
 
 .claude/
 .vscode/
+
+pyproject.toml
+uv.lock

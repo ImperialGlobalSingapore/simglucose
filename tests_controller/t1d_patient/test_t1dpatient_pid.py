@@ -1,24 +1,12 @@
 import logging
 from pathlib import Path
 
-import pandas as pd
-from multiprocessing import Pool
-from itertools import product
 
-from simglucose.patient.t1dpatient import T1DPatient, Action, PATIENT_PARA_FILE
+from simglucose.patient.t1dpatient import T1DPatient, Action
 from simglucose.patient.t1dpatient_2 import CtrlObservation
 from simglucose.controller.simple_pid_ctrller import SimplePIDController
 
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent))
-
-from plot_utils import (
-    plot_and_show,
-    plot_and_save,
-    get_rmse,
-    get_patients,
-)
+from glucose_control_analytics import plot_and_show, plot_and_save, get_rmse
 
 # Configure logger
 logger = logging.getLogger(__name__)

@@ -98,8 +98,8 @@ class Scenario(Enum):
         # Predefined carb amounts for each meal time
         carb_amounts = {
             Scenario.NO_MEAL: [],
-            Scenario.SINGLE_MEAL: [50],  # 50g of carbs for single meal
-            Scenario.ONE_DAY: [40, 60, 70],  # 40g, 50g, 70g of carbs per meal
+            Scenario.SINGLE_MEAL: [75],  # 75g of carbs for single meal
+            Scenario.ONE_DAY: [40, 60, 70],  # 40g, 60g, 70g of carbs per meal
             Scenario.THREE_DAY: [
                 40,
                 50,

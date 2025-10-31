@@ -8,7 +8,7 @@ setup(
     author="Jinyu Xie",
     author_email="xjygr08@gmail.com",
     license="MIT",
-    packages=["simglucose"],
+    packages=["simglucose", "glucose_control_analytics"],
     install_requires=[
         "gym==0.9.4",
         "gymnasium~=0.29.1",

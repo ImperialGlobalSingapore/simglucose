@@ -6,11 +6,9 @@ from test_t1dpatient_pid import (
     run_sim_simple_pid_no_meal,
     run_sim_simple_pid_single_meal,
 )
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent))
-from simglucose.patient.t1dm_patient import PatientType
-from tests_controller.plot_utils import Scenario
+from glucose_control_analytics import PatientType
+from simglucose.simulation.scenario_simple import Scenario
+from tests_controller.t1d_patient.utils import get_patient_by_group as _get_patient_by_group
 
 
 class GoodParamCriteria(Enum):
@@ -28,12 +26,10 @@ def get_good_param(lists: list, criteria: GoodParamCriteria):
 
 
 def get_patient_by_group(patient_type: str):
-    if patient_type == PatientType.ADOLESCENT.value:
-        return [f"adolescent#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.ADULT.value:
-        return [f"adult#00{i}" for i in range(1, 10)]
-    elif patient_type == PatientType.CHILD.value:
-        return [f"child#00{i}" for i in range(1, 10)]
+    """Wrapper that converts string patient type to PatientType enum."""
+    # Convert string to PatientType enum
+    patient_type_enum = PatientType(patient_type)
+    return _get_patient_by_group(patient_type_enum)
 
 
 def run_single_meal_params_in_no_meal():

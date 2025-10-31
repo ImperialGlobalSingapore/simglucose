@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 CtrlObservation = namedtuple("CtrlObservation", ["CGM", "bolus"])
 
 
-class ORefZeroController:
+class ORefZeroController(Controller):
     """
     OpenAPS oref0 controller that communicates with Node.js server
     for insulin dosage recommendations
@@ -25,18 +25,14 @@ class ORefZeroController:
 
     def __init__(
         self,
-        current_basal: float,
         server_url: str = "http://localhost:3000",
-        profile: Optional[Dict[str, Any]] = None,
         timeout: int = 30,
     ):
         """
-        Initialize the ORefZero controller
+        Initialize the ORefZero controller (supports multiple patients)
 
         Args:
-            current_basal: current basal rate
             server_url: URL of the Node.js OpenAPS server
-            profile: Custom patient profile, uses default if None
             timeout: Request timeout in seconds
         """
         self.server_url = server_url.rstrip("/")
@@ -44,37 +40,35 @@ class ORefZeroController:
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
-        self.collect_meal = 0
-        self.collect_bolus = 0
-
-        # Patient state tracking
+        # Patient state tracking (multi-patient support)
         self.patient_profiles = {}  # patientId -> profile mapping
         self.last_glucose_time = {}  # patientId -> last glucose timestamp
         self.glucose_history = {}  # patientId -> list of glucose readings
         self.meal_history = {}  # patientId -> list of meal entries
         self.pump_history = {}  # patientId -> list of pump events
+        self.collect_meal = {}  # patientId -> accumulated meal amount
+        self.last_insulin = {}  # patientId -> last insulin recommendation
+        self.last_iob = {}  # patientId -> last IOB (Insulin on Board) data
+        self.last_policy_context = {}  # patientId -> full context from last calculation
 
         # Store the required profile
-        # TODO: verify the parameters with loopinsight
-        # Set default profile, but override defaults with any keys present in 'profile'
-        base_profile = {
-            "current_basal": current_basal,  # Current basal rate in U/h
-            "sens": 50,  # Insulin Sensitivity Factor (ISF)
-            "dia": 6,  # Duration of Insulin Action in hours
+        # Set default profile, but override defaults with any keys present in 'profile'\
+        # refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
+        self.default_profile = {
+            "current_basal": None,  # Current basal rate in U/h
+            "sens": 45,  # Insulin Sensitivity Factor (ISF)
+            "dia": 7.0,  # Duration of Insulin Action in hours
             "carb_ratio": 10,  # Carb Ratio (g/U)
-            "max_iob": 6,  # Maximum insulin on board allowed
-            "max_basal": 3.5,  # Maximum temporary basal rate in U/h
-            "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day
-            "max_bg": 120,  # Upper target
-            "min_bg": 120,  # Lower target
-            "maxCOB": 120,  # Maximum carbs on board
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
-            "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
+            "max_iob": 12,  # Maximum insulin on board allowed， # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+            "max_basal": 4,  # Maximum temporary basal rate in U/h # from paper, max 10
+            "max_daily_basal": 0.9,  # Maximum daily basal rate in units per day # from paper
+            "max_bg": 140,  # Upper target
+            "min_bg": 90,  # Lower target
+            "maxCOB": 120,  # Maximum carbs on board  # from oref0 code
+            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
+            "min_5m_carbimpact": 8,  # Minimum carb absorption rate # from paper and oref0 code
             "type": "current",  # Profile type
         }
-        if profile:
-            base_profile.update(profile)
-        self.default_profile = base_profile
 
         logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
 
@@ -82,6 +76,18 @@ class ORefZeroController:
     def target_bg(self) -> float:
         """Get the target blood glucose level."""
         return (self.default_profile["min_bg"] + self.default_profile["max_bg"]) / 2
+
+    def _sanitize_patient_name(self, patient_name: str) -> str:
+        """
+        Sanitize patient name by removing special characters that may cause issues.
+
+        Args:
+            patient_name: Raw patient name
+
+        Returns:
+            Sanitized patient name safe for use as identifier
+        """
+        return patient_name.replace("#", "")
 
     def _make_request(
         self, method: str, endpoint: str, data: Optional[Dict] = None
@@ -115,18 +121,20 @@ class ORefZeroController:
 
         except Exception as e:
             logger.error(f"Unexpected error for {url}: {str(e)}")
-            raise
+            raise Exception("Unexpected error during server request")
 
-    def _initialize_patient(
+    def initialize_patient(
         self, patient_name: str, profile: Optional[Dict] = None
     ) -> bool:
-        patient_name = patient_name.replace("#", "")
-        """Initialize patient on the server"""
-        if patient_name in self.patient_profiles:
-            logger.debug(f"Patient {patient_name} already initialized")
-            return True
+        """Public method to initialize patient with given profile"""
+        patient_name = self._sanitize_patient_name(patient_name)
+        patient_profile = self.default_profile.copy()
+        if profile:
+            patient_profile.update(profile)
 
-        patient_profile = profile or self.default_profile.copy()
+        if not self._check_and_correct_profile(patient_profile):
+            logger.error(f"Invalid profile for patient {patient_name}")
+            return False
 
         # Prepare initialization data
         init_data = {
@@ -148,6 +156,9 @@ class ORefZeroController:
             self.meal_history[patient_name] = []
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
+            self.collect_meal[patient_name] = 0
+            self.last_insulin[patient_name] = {"basal": 0.0, "bolus": 0.0}
+            self.last_iob[patient_name] = {}
 
             logger.info(f"Patient {patient_name} initialized successfully")
             return True
@@ -155,6 +166,33 @@ class ORefZeroController:
         except Exception as e:
             logger.error(f"Failed to initialize patient {patient_name}: {str(e)}")
             return False
+
+    def is_patient_initialized(
+        self, patient_name: str, profile: Optional[Dict] = None
+    ) -> bool:
+        """Initialize patient on the server"""
+        patient_name = self._sanitize_patient_name(patient_name)
+        if patient_name in self.patient_profiles:
+            logger.debug(f"Patient {patient_name} already initialized")
+            return True
+        return False
+
+    def _check_and_correct_profile(self, profile: Dict):
+        # make sure current_basal is set
+        if profile["current_basal"] is None:
+            logger.error("Profile must include current_basal rate")
+            return False
+
+        # make sure min_bg < max_bg
+        if profile["min_bg"] > profile["max_bg"]:
+            logger.error("Profile min_bg must be less than max_bg")
+            return False
+
+        # make sure isfProfile has same sensitivity as sens
+        profile["isfProfile"] = {
+            "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
+        }
+        return True
 
     @staticmethod
     def _local_timezone() -> datetime:
@@ -229,9 +267,18 @@ class ORefZeroController:
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
-
         if meal_bolus > 0:
             new_data["bolus"] = meal_bolus
+        # TOBECONFIRM
+        # Add pump history entries (insulin deliveries from previous actions)
+        # We'll collect all pump events since last update
+        if (
+            patient_name in self.pump_history
+            and len(self.pump_history[patient_name]) > 0
+        ):
+            new_data["pumpHistory"] = self.pump_history[patient_name].copy()
+            # Clear the pump history after sending
+            self.pump_history[patient_name] = []
 
         return new_data
 
@@ -258,21 +305,20 @@ class ORefZeroController:
         Returns:
             CtrlAction with basal and bolus insulin recommendations
         """
-        patient_name = patient_name.replace("#", "")
+        patient_name = self._sanitize_patient_name(patient_name)
         # Initialize patient if not already done
-        if not self._initialize_patient(patient_name):
-            logger.warning(
-                f"Failed to initialize patient {patient_name}, using default action"
-            )
-            # return Action(basal=1.0, bolus=0.0)  # Default safe action
-            raise ValueError("Forgot to initialise patient.")
+        if not self.is_patient_initialized(patient_name):
+            if not self.initialize_patient(patient_name):
+                logger.warning(f"Failed to initialize patient {patient_name}")
+                # return Action(basal=1.0, bolus=0.0)  # Default safe action
+                raise ValueError("Forgot to initialise patient.")
 
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time.get(patient_name)
 
         # accumulate meal data
-        self.collect_meal += meal
+        self.collect_meal[patient_name] += meal
         self.collect_bolus += observation.bolus
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
@@ -282,7 +328,8 @@ class ORefZeroController:
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
             return Action(
-                basal=self.last_insulin["basal"], bolus=self.last_insulin["bolus"]
+                basal=self.last_insulin[patient_name]["basal"],
+                bolus=self.last_insulin[patient_name]["bolus"],
             )
 
         # Extract glucose level
@@ -290,14 +337,10 @@ class ORefZeroController:
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name,
-            glucose_level,
-            self.collect_meal,
-            self.collect_bolus,
-            timestamp,
+            patient_name, glucose_level, self.collect_meal[patient_name],self.collect_bolus[patient_name], timestamp
         )
-        self.collect_meal = 0  # Reset after sending
-        self.collect_bolus = 0  # Reset after sending
+        self.collect_meal[patient_name] = 0  # Reset after sending
+        self.collect_bolus[patient_name] = 0  # Reset after sending
         print(new_data)
         # Prepare calculation request
         calc_data = {
@@ -316,6 +359,7 @@ class ORefZeroController:
         # Extract recommendation
         suggestion = response.get("suggestion", {})
         basal_rate = response.get("IIR", 0.0) / 60  # U/h -> U/min
+        iob_data = response.get("context", {}).get("iob", {})
 
         # Calculate bolus recommendation
         # OpenAPS typically provides basal adjustments, bolus calculation
@@ -330,15 +374,27 @@ class ORefZeroController:
         if "microbolus" in suggestion:
             bolus_amount += suggestion.get("microbolus", 0.0)
 
+        # Extract IOB value for logging (iob_data contains the full IOB object)
+        iob_value = iob_data.get("iob", 0.0) if iob_data else 0.0
+        max_iob = self.patient_profiles[patient_name]["max_iob"]
+
         # Log the recommendation
         logger.debug(
             f"Patient {patient_name}: BG={glucose_level:.1f}, "
-            f"Meal={meal:.1f}g, Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
+            f"Meal={meal:.1f}g, IOB={iob_value:.2f}U (max={max_iob:.1f}), "
+            f"Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
         )
 
-        # Store the last glucose time
+        # Store the last glucose time, insulin recommendation, and IOB
         self.last_glucose_time[patient_name] = timestamp
-        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_insulin[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob[patient_name] = iob_data
+
+        # Store policy context with IOB-related values
+        self.last_policy_context[patient_name] = {
+            "iob_value": iob_value,  # OpenAPS calculated IOB
+            "max_iob": max_iob,  # Safety limit from profile
+        }
 
         return Action(basal=basal_rate, bolus=bolus_amount)
 
@@ -360,6 +416,7 @@ class ORefZeroController:
         self, patient_name: str, profile_updates: Dict[str, Any]
     ) -> bool:
         """Update patient profile on the server"""
+        patient_name = self._sanitize_patient_name(patient_name)
         try:
             if patient_name not in self.patient_profiles:
                 logger.warning(f"Patient {patient_name} not initialized")
@@ -390,3 +447,34 @@ class ORefZeroController:
         except Exception as e:
             logger.error(f"Server health check failed: {str(e)}")
             return False
+
+    def get_patient_iob(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get IOB-related values for a patient from OpenAPS calculation
+
+        Returns:
+            Dict with keys:
+                - iob_value: OpenAPS calculated total IOB (float)
+                - max_iob: Maximum allowed IOB from profile (float)
+
+        Note:
+            To get the patient model's physiological IOB, use patient.get_iob()
+            method on the T1DMPatient instance in your simulation loop.
+        """
+        patient_name = self._sanitize_patient_name(patient_name)
+        context = self.last_policy_context.get(patient_name)
+        return context if context else None
+
+    def get_policy_context(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Get the full policy context from last calculation
+
+        Returns same as get_patient_iob (they return the same data)
+        """
+        return self.get_patient_iob(patient_name)
+
+    def get_patient_profile(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        patient_name = self._sanitize_patient_name(patient_name)
+        if patient_name in self.patient_profiles:
+            return self.patient_profiles[patient_name]
+        return None

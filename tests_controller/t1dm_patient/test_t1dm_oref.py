@@ -254,20 +254,20 @@ if __name__ == "__main__":
     custom_profile = {
         "sens": 45,
         "dia": 7.0,
-        "carb_ratio": 20,
-        "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
-        "max_basal": 4,  # from paper, max 10
+        "carb_ratio": 10,
+        "max_iob": 20,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+        "max_basal": 5,  # from paper, max 10
         "max_daily_basal": 0.9,  # from paper
         "max_bg": 140,
         "min_bg": 90,
         "maxCOB": 120,  # from oref0 code
-        "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
+        "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
         "min_5m_carbimpact": 8,  # from paper and oref0 code
     }
 
     result = run_patient_with_oref0(
         patient_name="adult#007",
-        scenario=Scenario.ONE_DAY,
+        scenario=Scenario.SINGLE_MEAL,
         profile=custom_profile,
         show_plot=True,
     )

@@ -18,7 +18,6 @@ CONTROLLER_TYPE = "pid"  # Change this to 'bb' to use BBController
 Action = namedtuple("patient_action", ["CHO", "insulin"])
 Observation = namedtuple("observation", ["Gsub"])
 
-
 class T1DMPatient(Patient):
     SAMPLE_TIME = 1  # min
     EAT_RATE = 5  # g/min CHO
@@ -514,10 +513,10 @@ class T1DMPatient(Patient):
         return dxdt
 
 
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
-
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+
+    CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
     logger.setLevel(logging.DEBUG)
     # create console handler and set level to debug

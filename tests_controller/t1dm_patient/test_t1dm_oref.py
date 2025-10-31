@@ -12,16 +12,13 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
-from simglucose.controller.oref_zero import ORefZeroController
+from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
 from simglucose.simulation.scenario_simple import Scenario
 from glucose_control_analytics import TIRConfig, plot_and_show_with_tir, PatientType
 
 # Configure logger
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
-
-# Named tuple for controller observation
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
 
 def plot_iob_comparison(t, patient_model_iob, openaps_iob, title="IOB Comparison"):

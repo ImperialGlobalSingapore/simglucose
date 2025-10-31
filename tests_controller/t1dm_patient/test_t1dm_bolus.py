@@ -2,14 +2,9 @@ import logging
 from pathlib import Path
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
-
 from simglucose.controller.meal_bolus_ctrller import MealAnnouncementBolusController
-
-import sys
-
-sys.path.append(str(Path(__file__).parent.parent))
 from simglucose.simulation.scenario_simple import Scenario
-from tests_controller.plot_utils import calculate_time_in_range, plot_and_show
+from glucose_control_analytics import TIRConfig, plot_and_show_with_tir
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -91,22 +86,24 @@ def run_patient_with_bolus_only(
             )
 
     # Calculate time in range statistics
-    time_in_range = calculate_time_in_range(BG)
+    tir_config = TIRConfig()  # Defaults to BASIC standard
+    time_in_range = tir_config.calculate_time_in_range(BG)
 
     logger.info("\n=== Time in Range Results ===")
     for category, percentage in time_in_range.items():
-        logger.info(f"{category}: {percentage*100:.1f}%")
+        logger.info(f"{category.value}: {percentage:.1f}%")
 
     # Display plot if requested
     if show_plot:
-        plot_and_show(
+        plot_and_show_with_tir(
             t,
             BG,
             CHO,
             insulin,
             110,
-            f"T1DM Patient {patient_name} with ORef0 - {scenario.name}",
-            time_in_range=time_in_range,
+            f"T1DM Patient {patient_name} with Meal Bolus - {scenario.name}",
+            time_in_range,
+            tir_config,
         )
 
     return time_in_range

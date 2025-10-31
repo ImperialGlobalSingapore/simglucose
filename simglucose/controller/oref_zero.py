@@ -47,6 +47,7 @@ class ORefZeroController(Controller):
         self.meal_history = {}  # patientId -> list of meal entries
         self.pump_history = {}  # patientId -> list of pump events
         self.collect_meal = {}  # patientId -> accumulated meal amount
+        self.collect_bolus = {}  # patientId - > accumulated bolus
         self.last_insulin = {}  # patientId -> last insulin recommendation
         self.last_iob = {}  # patientId -> last IOB (Insulin on Board) data
         self.last_policy_context = {}  # patientId -> full context from last calculation
@@ -118,7 +119,7 @@ class ORefZeroController(Controller):
             logger.error(
                 f"HTTP error {e.response.status_code} for {url}: {e.response.text}"
             )
-
+            raise Exception(f"HTTP error {e.response.status_code}")
         except Exception as e:
             logger.error(f"Unexpected error for {url}: {str(e)}")
             raise Exception("Unexpected error during server request")
@@ -157,6 +158,7 @@ class ORefZeroController(Controller):
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
             self.collect_meal[patient_name] = 0
+            self.collect_bolus[patient_name] = 0
             self.last_insulin[patient_name] = {"basal": 0.0, "bolus": 0.0}
             self.last_iob[patient_name] = {}
 
@@ -267,8 +269,10 @@ class ORefZeroController(Controller):
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
+
         if meal_bolus > 0:
             new_data["bolus"] = meal_bolus
+
         # TOBECONFIRM
         # Add pump history entries (insulin deliveries from previous actions)
         # We'll collect all pump events since last update
@@ -319,7 +323,7 @@ class ORefZeroController(Controller):
 
         # accumulate meal data
         self.collect_meal[patient_name] += meal
-        self.collect_bolus += observation.bolus
+        self.collect_bolus[patient_name] += observation.bolus
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (

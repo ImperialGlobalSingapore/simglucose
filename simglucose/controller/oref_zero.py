@@ -447,3 +447,8 @@ class ORefZeroController(Controller):
         Returns same as get_patient_iob (they return the same data)
         """
         return self.get_patient_iob(patient_name)
+
+    def get_patient_profile(self, patient_id: str) -> Optional[Dict[str, Any]]:
+        if patient_id in self.patient_profiles:
+            return self.patient_profiles[patient_id]
+        return None

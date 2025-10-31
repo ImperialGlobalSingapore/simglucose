@@ -105,8 +105,25 @@ def init(request: InitRequest):
     # Store the patient session (patient + controller)
     patient_map[patient_id] = PatientSession(t1dm_patient, ctrl)
 
-    return {"initial_glucose": t1dm_patient.observation.Gsub, "patient_id": patient_id}
+    if request.controller_algorithm == "openaps":
+        profile = ctrl.get_patient_profile(request.patient)
+        if not profile:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve patient profile from OpenAPS",
+            )
 
+        max_iob = profile.get("max_iob", None)
+        return {
+            "initial_glucose": t1dm_patient.observation.Gsub,
+            "patient_id": patient_id,
+            "max_iob": max_iob,
+        }
+
+    return {
+        "initial_glucose": t1dm_patient.observation.Gsub,
+        "patient_id": patient_id,
+    }
 
 @app.post("/step/{patient_id}", response_model=StepResponse)
 def step(patient_id: str, request: StepRequest):

@@ -74,6 +74,18 @@ class ORefZeroController(Controller):
         """Get the target blood glucose level."""
         return (self.default_profile["min_bg"] + self.default_profile["max_bg"]) / 2
 
+    def _sanitize_patient_name(self, patient_name: str) -> str:
+        """
+        Sanitize patient name by removing special characters that may cause issues.
+
+        Args:
+            patient_name: Raw patient name
+
+        Returns:
+            Sanitized patient name safe for use as identifier
+        """
+        return patient_name.replace("#", "")
+
     def _make_request(
         self, method: str, endpoint: str, data: Optional[Dict] = None
     ) -> Dict[str, Any]:
@@ -112,7 +124,7 @@ class ORefZeroController(Controller):
         self, patient_name: str, profile: Optional[Dict] = None
     ) -> bool:
         """Public method to initialize patient with given profile"""
-        patient_name = patient_name.replace("#", "")
+        patient_name = self._sanitize_patient_name(patient_name)
         patient_profile = self.default_profile.copy()
         if profile:
             patient_profile.update(profile)
@@ -155,8 +167,8 @@ class ORefZeroController(Controller):
     def is_patient_initialized(
         self, patient_name: str, profile: Optional[Dict] = None
     ) -> bool:
-        patient_name = patient_name.replace("#", "")
         """Initialize patient on the server"""
+        patient_name = self._sanitize_patient_name(patient_name)
         if patient_name in self.patient_profiles:
             logger.debug(f"Patient {patient_name} already initialized")
             return True
@@ -283,7 +295,7 @@ class ORefZeroController(Controller):
         Returns:
             CtrlAction with basal and bolus insulin recommendations
         """
-        patient_name = patient_name.replace("#", "")
+        patient_name = self._sanitize_patient_name(patient_name)
         # Initialize patient if not already done
         if not self.is_patient_initialized(patient_name):
             if not self.initialize_patient(patient_name):
@@ -392,6 +404,7 @@ class ORefZeroController(Controller):
         self, patient_name: str, profile_updates: Dict[str, Any]
     ) -> bool:
         """Update patient profile on the server"""
+        patient_name = self._sanitize_patient_name(patient_name)
         try:
             if patient_name not in self.patient_profiles:
                 logger.warning(f"Patient {patient_name} not initialized")
@@ -436,7 +449,7 @@ class ORefZeroController(Controller):
             To get the patient model's physiological IOB, use patient.get_iob()
             method on the T1DMPatient instance in your simulation loop.
         """
-        patient_name = patient_name.replace("#", "")
+        patient_name = self._sanitize_patient_name(patient_name)
         context = self.last_policy_context.get(patient_name)
         return context if context else None
 
@@ -448,7 +461,8 @@ class ORefZeroController(Controller):
         """
         return self.get_patient_iob(patient_name)
 
-    def get_patient_profile(self, patient_id: str) -> Optional[Dict[str, Any]]:
-        if patient_id in self.patient_profiles:
-            return self.patient_profiles[patient_id]
+    def get_patient_profile(self, patient_name: str) -> Optional[Dict[str, Any]]:
+        patient_name = self._sanitize_patient_name(patient_name)
+        if patient_name in self.patient_profiles:
+            return self.patient_profiles[patient_name]
         return None

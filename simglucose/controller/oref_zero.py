@@ -265,7 +265,7 @@ class ORefZeroController(Controller):
         # Add carb entry if we have a meal
         if meal > 0:
             carb_entry = {
-                "created_at": timestamp,
+                "timestamp": timestamp,
                 "carbs": meal,
             }
             new_data["carbEntries"] = [carb_entry]
@@ -273,7 +273,7 @@ class ORefZeroController(Controller):
 
         if meal_bolus > 0:
             bolus_entry = {
-                "created_at": timestamp,
+                "timestamp": timestamp,
                 "bolus": meal_bolus,
             }
             new_data["bolusEntries"] = bolus_entry

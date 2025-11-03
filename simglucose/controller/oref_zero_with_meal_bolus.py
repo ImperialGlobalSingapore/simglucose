@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any, Optional
-from simglucose.controller.oref_zero import ORefZeroController
+from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
 from simglucose.controller.meal_bolus_ctrller import MealAnnouncementBolusController
 from simglucose.controller.base import Controller, Action
 
@@ -43,7 +43,9 @@ class ORefZeroWithMealBolus(Controller):
             t_start: Patient simulation start time as datetime object (optional)
         """
         # Create ORefZeroController instance
-        self.oref0_controller = ORefZeroController(server_url=server_url, timeout=timeout)
+        self.oref0_controller = ORefZeroController(
+            server_url=server_url, timeout=timeout
+        )
 
         # Create MealAnnouncementBolusController instance
         self.meal_bolus_controller = MealAnnouncementBolusController(
@@ -80,15 +82,21 @@ class ORefZeroWithMealBolus(Controller):
         Returns:
             Action with combined basal (from ORefZero) and bolus (meal announcement + ORefZero)
         """
-        # Get ORefZero recommendation (basal and any bolus from ORefZero)
-        # ORefZero expects datetime object
-        oref_action = self.oref0_controller.policy(
-            observation, reward, done, patient_name, meal, time
-        )
 
         # Get meal announcement bolus (if any meal is upcoming)
         # MealAnnouncementBolusController will calculate elapsed_time from time - t_start
         meal_bolus_action = self.meal_bolus_controller.policy(time)
+
+        # Create new observation with meal bolus (namedtuples are immutable)
+        observation_with_bolus = CtrlObservation(
+            CGM=observation.CGM, bolus=meal_bolus_action.bolus
+        )
+
+        # Get ORefZero recommendation (basal and any bolus from ORefZero)
+        # ORefZero expects datetime object
+        oref_action = self.oref0_controller.policy(
+            observation_with_bolus, reward, done, patient_name, meal, time
+        )
 
         # Combine: use ORefZero basal, add meal bolus to ORefZero bolus
         combined_bolus = oref_action.bolus + meal_bolus_action.bolus
@@ -102,19 +110,15 @@ class ORefZeroWithMealBolus(Controller):
 
         return Action(basal=oref_action.basal, bolus=combined_bolus)
 
-    def reset(self):
-        """Reset both controllers."""
-        # Reset meal bolus controller
-        self.meal_bolus_controller.reset()
-
-        # ORefZeroController doesn't have a reset method, so we don't need to call it
-        logger.info("ORefZeroWithMealBolus Controller reset")
-
-    def initialize_patient(self, patient_name: str, profile: Optional[Dict] = None) -> bool:
+    def initialize_patient(
+        self, patient_name: str, profile: Optional[Dict] = None
+    ) -> bool:
         """Initialize patient on ORefZero controller."""
         return self.oref0_controller.initialize_patient(patient_name, profile)
 
-    def is_patient_initialized(self, patient_name: str, profile: Optional[Dict] = None) -> bool:
+    def is_patient_initialized(
+        self, patient_name: str, profile: Optional[Dict] = None
+    ) -> bool:
         """Check if patient is initialized on ORefZero controller."""
         return self.oref0_controller.is_patient_initialized(patient_name, profile)
 

@@ -1,5 +1,6 @@
 import random
 from collections import namedtuple
+from datetime import datetime
 
 
 Action = namedtuple("meal_bolus_action", ["bolus"])
@@ -15,64 +16,57 @@ class MealAnnouncementBolusController:
 
     def __init__(
         self,
-        scenario,
+        meal_schedule=None,
         carb_factor=10,
         release_time_before_meal=10,  # minutes before meal to release bolus
         carb_estimation_error=0.3,  # +/- percentage of carb estimation error
-        body_weight=None,
+        sample_time=1,  # time period over which to deliver bolus (minutes)
+        t_start=None,  # patient start time (datetime)
     ):
         """
         Initialize the meal bolus controller.
 
         Args:
-            scenario: Scenario enum from scenario_simple.py (e.g., Scenario.ONE_DAY)
+            meal_schedule: List of tuples (time_minutes, carbs_grams), e.g.,
+                          [(120, 50), (360, 75), (720, 60)]
             carb_factor: Carbohydrate factor in g/U (default: 10, meaning 1U per 10g CHO)
             release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
             carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
-            body_weight: Patient body weight in kg (optional, for scenario meal calculation)
+            sample_time: Time period over which to deliver bolus in minutes (default: 1)
+            t_start: Patient simulation start time as datetime object (optional)
         """
-        self.scenario = scenario
+        self._meal_schedule = meal_schedule if meal_schedule is not None else []
         self.carb_factor = carb_factor
         self.release_time_before_meal = release_time_before_meal
         self.carb_estimation_error = carb_estimation_error
-        self.body_weight = body_weight
-
-        # Pre-calculate all meal times and amounts for efficiency
-        self._meal_schedule = self._build_meal_schedule()
-
-    def _build_meal_schedule(self):
-        """
-        Build a schedule of all meals in the scenario.
-
-        Returns:
-            List of tuples (meal_time_minutes, meal_amount_grams)
-        """
-        meal_schedule = []
-
-        # Scan through the scenario's max time to find all meals
-        max_time = self.scenario.max_t
-        for t in range(0, max_time + 1):
-            action = self.scenario.get_action(t, self.body_weight)
-            if action.meal > 0:
-                meal_schedule.append((t, action.meal))
-
-        return meal_schedule
+        self.sample_time = sample_time
+        self.t_start = t_start
 
     def policy(self, t):
         """
         Get bolus action for the current time.
 
         Args:
-            t: Current time in minutes
+            t: Current time - can be either:
+                - elapsed time in minutes (int/float), or
+                - datetime object (will calculate elapsed time from t_start)
 
         Returns:
-            Action namedtuple with bolus amount in U (units of insulin)
+            Action namedtuple with bolus amount in U/min (insulin rate)
         """
-        # Force t to int for exact time matching
-        t = int(t)
+        # Calculate elapsed time in minutes
+        if isinstance(t, datetime):
+            if self.t_start is None:
+                raise ValueError("t_start must be set when using datetime for policy")
+            elapsed_time = (t - self.t_start).total_seconds() / 60
+        else:
+            elapsed_time = t
+
+        # Force to int for exact time matching
+        elapsed_time = int(elapsed_time)
 
         # Check if there's a meal coming up at the release time
-        target_meal_time = t + self.release_time_before_meal
+        target_meal_time = elapsed_time + self.release_time_before_meal
 
         for meal_time, meal_amount in self._meal_schedule:
             if meal_time == target_meal_time:
@@ -83,14 +77,13 @@ class MealAnnouncementBolusController:
                     )
                     meal_amount *= 1 + random_factor
 
-                # Calculate bolus: meal amount / carb factor
-                bolus = meal_amount / self.carb_factor
-                return Action(bolus=bolus)  # U/min
+                # Calculate bolus in total units: meal amount / carb factor
+                bolus_total = meal_amount / self.carb_factor  # U
+
+                # Convert to rate (U/min) by dividing by sample_time
+                bolus_rate = bolus_total / self.sample_time  # U/min
+
+                return Action(bolus=bolus_rate)
 
         # No meal coming up, return zero bolus
         return Action(bolus=0)
-
-    def reset(self):
-        """Reset the controller state."""
-        # Rebuild meal schedule in case scenario changed
-        self._meal_schedule = self._build_meal_schedule()

@@ -45,6 +45,7 @@ class ORefZeroController(Controller):
         self.last_glucose_time = {}  # patientId -> last glucose timestamp
         self.glucose_history = {}  # patientId -> list of glucose readings
         self.meal_history = {}  # patientId -> list of meal entries
+        self.bolus_history = {}  # patientId -> list of bolus entries
         self.pump_history = {}  # patientId -> list of pump events
         self.collect_meal = {}  # patientId -> accumulated meal amount
         self.collect_bolus = {}  # patientId - > accumulated bolus
@@ -156,6 +157,7 @@ class ORefZeroController(Controller):
             self.glucose_history[patient_name] = []
             self.meal_history[patient_name] = []
             self.pump_history[patient_name] = []
+            self.bolus_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
             self.collect_meal[patient_name] = 0
             self.collect_bolus[patient_name] = 0
@@ -265,13 +267,17 @@ class ORefZeroController(Controller):
             carb_entry = {
                 "created_at": timestamp,
                 "carbs": meal,
-                "enteredBy": "controller",
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
 
         if meal_bolus > 0:
-            new_data["bolus"] = meal_bolus
+            bolus_entry = {
+                "created_at": timestamp,
+                "bolus": meal_bolus,
+            }
+            new_data["bolusEntries"] = bolus_entry
+            self.bolus_history[patient_name].append(bolus_entry)
 
         # TOBECONFIRM
         # Add pump history entries (insulin deliveries from previous actions)

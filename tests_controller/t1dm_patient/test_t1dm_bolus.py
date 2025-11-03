@@ -11,6 +11,25 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 
+def scenario_to_meal_schedule(scenario, body_weight=None):
+    """
+    Convert a Scenario enum to a meal schedule list of tuples.
+
+    Args:
+        scenario: Scenario enum
+        body_weight: Patient body weight in kg (optional)
+
+    Returns:
+        List of tuples (time_minutes, carbs_grams)
+    """
+    meal_schedule = []
+    for t in range(0, scenario.max_t + 1):
+        carbs = scenario.get_carb(t, body_weight)
+        if carbs > 0:
+            meal_schedule.append((t, carbs))
+    return meal_schedule
+
+
 def run_patient_with_bolus_only(
     patient_name="adult#001",
     scenario=Scenario.ONE_DAY,
@@ -35,15 +54,20 @@ def run_patient_with_bolus_only(
     p = T1DMPatient.withName(patient_name)
     logger.info(f"Patient {patient_name} initialized")
 
+    # Convert scenario to meal schedule
+    meal_schedule = scenario_to_meal_schedule(scenario, p.body_weight)
+    logger.info(f"Meal schedule: {meal_schedule}")
+
     # Initialize controller
     meal_bolus_ctrl = MealAnnouncementBolusController(
-        scenario=scenario,
+        meal_schedule=meal_schedule,
         carb_factor=(
             profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
         ),
         release_time_before_meal=release_time_before_meal,
         carb_estimation_error=carb_estimation_error,
-        body_weight=p.body_weight,
+        sample_time=p.SAMPLE_TIME,
+        t_start=p.t_start,  # Pass patient start time for elapsed time calculation
     )
 
     basal = p.basal  # U/min
@@ -61,7 +85,7 @@ def run_patient_with_bolus_only(
         carb = scenario.get_carb(p.t_elapsed, p.body_weight)
 
         # Get bolus from meal bolus controller
-        bolus_action = meal_bolus_ctrl.policy(p.t_elapsed)
+        bolus_action = meal_bolus_ctrl.policy(p.t)  # Pass datetime, controller will calculate elapsed
 
         # Check for severe hypoglycemia
         if p.observation.Gsub < 39:

@@ -17,7 +17,7 @@ CtrlObservation = namedtuple("CtrlObservation", ["CGM", "bolus"])
 class ORefZeroController(Controller):
     """
     OpenAPS oref0 controller that communicates with Node.js server
-    for insulin dosage recommendations
+    for insulin dosage recommendations (single patient per instance)
     """
 
     DEFAULT_TIMEZONE = "UTC"
@@ -25,33 +25,38 @@ class ORefZeroController(Controller):
 
     def __init__(
         self,
+        patient_name: str,
         server_url: str = "http://localhost:3000",
         timeout: int = 30,
+        profile: Optional[Dict] = None,
     ):
         """
-        Initialize the ORefZero controller (supports multiple patients)
+        Initialize the ORefZero controller for a single patient
 
         Args:
+            patient_name: Unique patient identifier
             server_url: URL of the Node.js OpenAPS server
             timeout: Request timeout in seconds
+            profile: Patient-specific profile parameters (optional, will use defaults if not provided)
         """
+        self.patient_name = self._sanitize_patient_name(patient_name)
         self.server_url = server_url.rstrip("/")
         self.timeout = timeout
         self.session = requests.Session()
         self.session.headers.update({"Content-Type": "application/json"})
 
-        # Patient state tracking (multi-patient support)
-        self.patient_profiles = {}  # patientId -> profile mapping
-        self.last_glucose_time = {}  # patientId -> last glucose timestamp
-        self.glucose_history = {}  # patientId -> list of glucose readings
-        self.meal_history = {}  # patientId -> list of meal entries
-        self.bolus_history = {}  # patientId -> list of bolus entries
-        self.pump_history = {}  # patientId -> list of pump events
-        self.collect_meal = {}  # patientId -> accumulated meal amount
-        self.collect_bolus = {}  # patientId - > accumulated bolus
-        self.last_insulin = {}  # patientId -> last insulin recommendation
-        self.last_iob = {}  # patientId -> last IOB (Insulin on Board) data
-        self.last_policy_context = {}  # patientId -> full context from last calculation
+        # Patient state tracking (single patient)
+        self.last_glucose_time = None  # last glucose timestamp
+        self.glucose_history = []  # list of glucose readings
+        self.meal_history = []  # list of meal entries
+        self.bolus_history = []  # list of bolus entries
+        self.pump_history = []  # list of pump events
+        self.collect_meal = 0  # accumulated meal amount
+        self.collect_bolus = 0  # accumulated bolus
+        self.last_insulin = {"basal": 0.0, "bolus": 0.0}  # last insulin recommendation
+        self.last_iob = {}  # last IOB (Insulin on Board) data
+        self.last_policy_context = {}  # full context from last calculation
+        self.is_initialized = False  # track initialization status
 
         # Store the required profile
         # Set default profile, but override defaults with any keys present in 'profile'\
@@ -72,12 +77,17 @@ class ORefZeroController(Controller):
             "type": "current",  # Profile type
         }
 
-        logger.info(f"ORefZero Controller initialized with server: {self.server_url}")
+        # Build patient profile
+        self.patient_profile = self.default_profile.copy()
+        if profile:
+            self.patient_profile.update(profile)
+
+        logger.info(f"ORefZero Controller initialized for patient: {self.patient_name}")
 
     @property
     def target_bg(self) -> float:
         """Get the target blood glucose level."""
-        return (self.default_profile["min_bg"] + self.default_profile["max_bg"]) / 2
+        return (self.patient_profile["min_bg"] + self.patient_profile["max_bg"]) / 2
 
     def _sanitize_patient_name(self, patient_name: str) -> str:
         """
@@ -125,22 +135,19 @@ class ORefZeroController(Controller):
             logger.error(f"Unexpected error for {url}: {str(e)}")
             raise Exception("Unexpected error during server request")
 
-    def initialize_patient(
-        self, patient_name: str, profile: Optional[Dict] = None
-    ) -> bool:
-        """Public method to initialize patient with given profile"""
-        patient_name = self._sanitize_patient_name(patient_name)
-        patient_profile = self.default_profile.copy()
-        if profile:
-            patient_profile.update(profile)
+    def initialize(self) -> bool:
+        """Initialize patient on the server"""
+        if self.is_initialized:
+            logger.debug(f"Patient {self.patient_name} already initialized")
+            return True
 
-        if not self._check_and_correct_profile(patient_profile):
-            logger.error(f"Invalid profile for patient {patient_name}")
+        if not self._check_and_correct_profile(self.patient_profile):
+            logger.error(f"Invalid profile for patient {self.patient_name}")
             return False
 
         # Prepare initialization data
         init_data = {
-            "profile": patient_profile,
+            "profile": self.patient_profile,
             "initialData": {"glucoseHistory": [], "pumpHistory": [], "carbHistory": []},
             "settings": {
                 "timezone": self.DEFAULT_TIMEZONE,
@@ -151,35 +158,15 @@ class ORefZeroController(Controller):
 
         try:
             response = self._make_request(
-                "POST", f"/patients/{patient_name}/initialize", init_data
+                "POST", f"/patients/{self.patient_name}/initialize", init_data
             )
-            self.patient_profiles[patient_name] = patient_profile
-            self.glucose_history[patient_name] = []
-            self.meal_history[patient_name] = []
-            self.pump_history[patient_name] = []
-            self.bolus_history[patient_name] = []
-            self.last_glucose_time[patient_name] = None
-            self.collect_meal[patient_name] = 0
-            self.collect_bolus[patient_name] = 0
-            self.last_insulin[patient_name] = {"basal": 0.0, "bolus": 0.0}
-            self.last_iob[patient_name] = {}
-
-            logger.info(f"Patient {patient_name} initialized successfully")
+            self.is_initialized = True
+            logger.info(f"Patient {self.patient_name} initialized successfully")
             return True
 
         except Exception as e:
-            logger.error(f"Failed to initialize patient {patient_name}: {str(e)}")
+            logger.error(f"Failed to initialize patient {self.patient_name}: {str(e)}")
             return False
-
-    def is_patient_initialized(
-        self, patient_name: str, profile: Optional[Dict] = None
-    ) -> bool:
-        """Initialize patient on the server"""
-        patient_name = self._sanitize_patient_name(patient_name)
-        if patient_name in self.patient_profiles:
-            logger.debug(f"Patient {patient_name} already initialized")
-            return True
-        return False
 
     def _check_and_correct_profile(self, profile: Dict):
         # make sure current_basal is set
@@ -239,7 +226,6 @@ class ORefZeroController(Controller):
 
     def _prepare_new_data(
         self,
-        patient_name: str,
         glucose: float,
         meal: float,
         meal_bolus: float,
@@ -260,7 +246,7 @@ class ORefZeroController(Controller):
                 "timestamp": timestamp,
             }
             new_data["glucoseReadings"] = [glucose_entry]
-            self.glucose_history[patient_name].append(glucose_entry)
+            self.glucose_history.append(glucose_entry)
 
         # Add carb entry if we have a meal
         if meal > 0:
@@ -269,7 +255,7 @@ class ORefZeroController(Controller):
                 "carbs": meal,
             }
             new_data["carbEntries"] = [carb_entry]
-            self.meal_history[patient_name].append(carb_entry)
+            self.meal_history.append(carb_entry)
 
         if meal_bolus > 0:
             bolus_entry = {
@@ -277,18 +263,15 @@ class ORefZeroController(Controller):
                 "bolus": meal_bolus,
             }
             new_data["bolusEntries"] = bolus_entry
-            self.bolus_history[patient_name].append(bolus_entry)
+            self.bolus_history.append(bolus_entry)
 
         # TOBECONFIRM
         # Add pump history entries (insulin deliveries from previous actions)
         # We'll collect all pump events since last update
-        if (
-            patient_name in self.pump_history
-            and len(self.pump_history[patient_name]) > 0
-        ):
-            new_data["pumpHistory"] = self.pump_history[patient_name].copy()
+        if len(self.pump_history) > 0:
+            new_data["pumpHistory"] = self.pump_history.copy()
             # Clear the pump history after sending
-            self.pump_history[patient_name] = []
+            self.pump_history = []
 
         return new_data
 
@@ -297,7 +280,6 @@ class ORefZeroController(Controller):
         observation,
         reward: float,
         done: bool,
-        patient_name: str,
         meal: float,
         time,
     ) -> Action:
@@ -308,28 +290,25 @@ class ORefZeroController(Controller):
             observation: CtrlObservation object with glucose level
             reward: Reward signal (not used by OpenAPS)
             done: Episode done flag (not used by OpenAPS)
-            patient_name: Unique patient identifier
             meal: Carbohydrate amount in grams
             time: Current simulation time
 
         Returns:
             CtrlAction with basal and bolus insulin recommendations
         """
-        patient_name = self._sanitize_patient_name(patient_name)
         # Initialize patient if not already done
-        if not self.is_patient_initialized(patient_name):
-            if not self.initialize_patient(patient_name):
-                logger.warning(f"Failed to initialize patient {patient_name}")
-                # return Action(basal=1.0, bolus=0.0)  # Default safe action
-                raise ValueError("Forgot to initialise patient.")
+        if not self.is_initialized:
+            if not self.initialize():
+                logger.warning(f"Failed to initialize patient {self.patient_name}")
+                raise ValueError("Failed to initialize patient.")
 
         # Convert time to timestamp
         timestamp = self._convert_time_to_timestamp(time)
-        previous_timestamp = self.last_glucose_time.get(patient_name)
+        previous_timestamp = self.last_glucose_time
 
         # accumulate meal data
-        self.collect_meal[patient_name] += meal
-        self.collect_bolus[patient_name] += observation.bolus
+        self.collect_meal += meal
+        self.collect_bolus += observation.bolus
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -338,8 +317,8 @@ class ORefZeroController(Controller):
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
             return Action(
-                basal=self.last_insulin[patient_name]["basal"],
-                bolus=self.last_insulin[patient_name]["bolus"],
+                basal=self.last_insulin["basal"],
+                bolus=self.last_insulin["bolus"],
             )
 
         # Extract glucose level
@@ -347,10 +326,10 @@ class ORefZeroController(Controller):
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal[patient_name],self.collect_bolus[patient_name], timestamp
+            glucose_level, self.collect_meal, self.collect_bolus, timestamp
         )
-        self.collect_meal[patient_name] = 0  # Reset after sending
-        self.collect_bolus[patient_name] = 0  # Reset after sending
+        self.collect_meal = 0  # Reset after sending
+        self.collect_bolus = 0  # Reset after sending
         print(new_data)
         # Prepare calculation request
         calc_data = {
@@ -363,7 +342,7 @@ class ORefZeroController(Controller):
         }
 
         # Make calculation request
-        endpoint = f"/patients/{patient_name}/calculate"
+        endpoint = f"/patients/{self.patient_name}/calculate"
         response = self._make_request("POST", endpoint, calc_data)
         print(response["suggestion"])
         # Extract recommendation
@@ -386,66 +365,63 @@ class ORefZeroController(Controller):
 
         # Extract IOB value for logging (iob_data contains the full IOB object)
         iob_value = iob_data.get("iob", 0.0) if iob_data else 0.0
-        max_iob = self.patient_profiles[patient_name]["max_iob"]
+        max_iob = self.patient_profile["max_iob"]
 
         # Log the recommendation
         logger.debug(
-            f"Patient {patient_name}: BG={glucose_level:.1f}, "
+            f"Patient {self.patient_name}: BG={glucose_level:.1f}, "
             f"Meal={meal:.1f}g, IOB={iob_value:.2f}U (max={max_iob:.1f}), "
             f"Basal={basal_rate:.3f}, Bolus={bolus_amount:.3f}"
         )
 
         # Store the last glucose time, insulin recommendation, and IOB
-        self.last_glucose_time[patient_name] = timestamp
-        self.last_insulin[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
-        self.last_iob[patient_name] = iob_data
+        self.last_glucose_time = timestamp
+        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob = iob_data
 
         # Store policy context with IOB-related values
-        self.last_policy_context[patient_name] = {
+        self.last_policy_context = {
             "iob_value": iob_value,  # OpenAPS calculated IOB
             "max_iob": max_iob,  # Safety limit from profile
         }
 
         return Action(basal=basal_rate, bolus=bolus_amount)
 
-    def get_patient_status(self, patient_name: str) -> Optional[Dict[str, Any]]:
+    def get_status(self) -> Optional[Dict[str, Any]]:
         """Get current patient status from the server"""
         try:
-            if patient_name not in self.patient_profiles:
-                logger.warning(f"Patient {patient_name} not initialized")
+            if not self.is_initialized:
+                logger.warning(f"Patient {self.patient_name} not initialized")
                 return None
 
-            response = self._make_request("GET", f"/patients/{patient_name}/status")
+            response = self._make_request("GET", f"/patients/{self.patient_name}/status")
             return response
 
         except Exception as e:
-            logger.error(f"Error getting patient status for {patient_name}: {str(e)}")
+            logger.error(f"Error getting patient status for {self.patient_name}: {str(e)}")
             return None
 
-    def update_patient_profile(
-        self, patient_name: str, profile_updates: Dict[str, Any]
-    ) -> bool:
+    def update_profile(self, profile_updates: Dict[str, Any]) -> bool:
         """Update patient profile on the server"""
-        patient_name = self._sanitize_patient_name(patient_name)
         try:
-            if patient_name not in self.patient_profiles:
-                logger.warning(f"Patient {patient_name} not initialized")
+            if not self.is_initialized:
+                logger.warning(f"Patient {self.patient_name} not initialized")
                 return False
 
             response = self._make_request(
-                "PATCH", f"/patients/{patient_name}/profile", profile_updates
+                "PATCH", f"/patients/{self.patient_name}/profile", profile_updates
             )
 
             # Update local copy
-            self.patient_profiles[patient_name].update(profile_updates)
+            self.patient_profile.update(profile_updates)
 
             logger.info(
-                f"Updated profile for patient {patient_name}: {list(profile_updates.keys())}"
+                f"Updated profile for patient {self.patient_name}: {list(profile_updates.keys())}"
             )
             return True
 
         except Exception as e:
-            logger.error(f"Error updating patient profile for {patient_name}: {str(e)}")
+            logger.error(f"Error updating patient profile for {self.patient_name}: {str(e)}")
             return False
 
     def health_check(self) -> bool:
@@ -458,9 +434,9 @@ class ORefZeroController(Controller):
             logger.error(f"Server health check failed: {str(e)}")
             return False
 
-    def get_patient_iob(self, patient_name: str) -> Optional[Dict[str, Any]]:
+    def get_iob(self) -> Optional[Dict[str, Any]]:
         """
-        Get IOB-related values for a patient from OpenAPS calculation
+        Get IOB-related values from OpenAPS calculation
 
         Returns:
             Dict with keys:
@@ -471,20 +447,16 @@ class ORefZeroController(Controller):
             To get the patient model's physiological IOB, use patient.get_iob()
             method on the T1DMPatient instance in your simulation loop.
         """
-        patient_name = self._sanitize_patient_name(patient_name)
-        context = self.last_policy_context.get(patient_name)
-        return context if context else None
+        return self.last_policy_context if self.last_policy_context else None
 
-    def get_policy_context(self, patient_name: str) -> Optional[Dict[str, Any]]:
+    def get_policy_context(self) -> Optional[Dict[str, Any]]:
         """
         Get the full policy context from last calculation
 
-        Returns same as get_patient_iob (they return the same data)
+        Returns same as get_iob (they return the same data)
         """
-        return self.get_patient_iob(patient_name)
+        return self.get_iob()
 
-    def get_patient_profile(self, patient_name: str) -> Optional[Dict[str, Any]]:
-        patient_name = self._sanitize_patient_name(patient_name)
-        if patient_name in self.patient_profiles:
-            return self.patient_profiles[patient_name]
-        return None
+    def get_profile(self) -> Dict[str, Any]:
+        """Get the patient profile"""
+        return self.patient_profile

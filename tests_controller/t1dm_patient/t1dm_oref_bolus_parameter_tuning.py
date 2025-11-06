@@ -7,8 +7,7 @@ import numpy as np
 from itertools import product
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
-from simglucose.controller.oref_zero import ORefZeroController
-from simglucose.simulation.scenario_simple import Scenario
+from simglucose.controller.oref_zero_with_meal_bolus import ORefZeroWithMealBolus, CtrlObservation
 from glucose_control_analytics import PatientType, OpenAPSParameterTuningBase
 
 matplotlib.use("Agg")  # Use non-interactive backend to prevent window pop-ups
@@ -23,38 +22,6 @@ parent_folder = file_path.parent
 result_dir = parent_folder / "imgs" / "oref0_parameter_tuning"
 
 
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
-
-
-def parse_virtual_patient_id(virtual_patient_id: str) -> tuple[str, int, str]:
-    """
-    Parse a virtual patient ID to extract patient name, parameter index, and scenario.
-
-    Args:
-        virtual_patient_id: Virtual patient ID (e.g., "adult_001_param_0_NO_MEAL")
-
-    Returns:
-        Tuple of (patient_name, param_idx, scenario_name)
-        e.g., ("adult#001", 0, "NO_MEAL")
-    """
-    parts = virtual_patient_id.split("_")
-
-    # Find the index of "param"
-    param_idx_pos = parts.index("param")
-
-    # Patient name is everything before "param"
-    patient_parts = parts[:param_idx_pos]
-    patient_name = "#".join(patient_parts)  # Restore # separator
-
-    # Parameter index is right after "param"
-    param_idx = int(parts[param_idx_pos + 1])
-
-    # Scenario is everything after param index
-    scenario_name = "_".join(parts[param_idx_pos + 2 :])
-
-    return patient_name, param_idx, scenario_name
-
-
 class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
     """
     T1DM-specific OpenAPS parameter tuning implementation.
@@ -63,43 +30,71 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
     parameter tuning using the ORef0 controller.
     """
 
+    @staticmethod
+    def parse_virtual_patient_id(virtual_patient_id: str) -> tuple[str, int, int]:
+        """
+        Parse a virtual patient ID to extract patient name, parameter index, and carb amount.
+
+        Args:
+            virtual_patient_id: Virtual patient ID (e.g., "adult_001_param_0_carb_50")
+
+        Returns:
+            Tuple of (patient_name, param_idx, carb_amount)
+            e.g., ("adult#001", 0, 50)
+        """
+        parts = virtual_patient_id.split("_")
+
+        # Find the index of "param"
+        param_idx_pos = parts.index("param")
+
+        # Patient name is everything before "param"
+        patient_parts = parts[:param_idx_pos]
+        patient_name = "#".join(patient_parts)  # Restore # separator
+
+        # Parameter index is right after "param"
+        param_idx = int(parts[param_idx_pos + 1])
+
+        # Carb amount is after "carb"
+        carb_idx_pos = parts.index("carb")
+        carb_amount = int(parts[carb_idx_pos + 1])
+
+        return patient_name, param_idx, carb_amount
+
     def create_virtual_patient_id(
-        self, patient_name: str, param_idx: int, scenario_name: str
+        self, patient_name: str, param_idx: int, carb_amount: int
     ) -> str:
         """
-        Create a virtual patient ID that encodes patient, parameter index, and scenario.
+        Create a virtual patient ID that encodes patient, parameter index, and carb amount.
 
         Args:
             patient_name: Patient name (e.g., "adult#001")
             param_idx: Parameter set index
-            scenario_name: Scenario name (e.g., "NO_MEAL")
+            carb_amount: Amount of carbs in grams (e.g., 50)
 
         Returns:
-            Virtual patient ID (e.g., "adult_001_param_0_NO_MEAL")
+            Virtual patient ID (e.g., "adult_001_param_0_carb_50")
         """
         base_name = patient_name.replace("#", "_")
-        return f"{base_name}_param_{param_idx}_{scenario_name}"
+        return f"{base_name}_param_{param_idx}_carb_{carb_amount}"
 
     @staticmethod
     def simulation_loop(virtual_patient_id, patient_map):
         """
-        Simulation loop for T1DM patient with ORef0 controller.
+        Simulation loop for T1DM patient with ORef0 + Meal Bolus controller.
 
         This implements the closed-loop control simulation for Type 1 Diabetes patients
-        using the OpenAPS ORef0 algorithm.
+        using the OpenAPS ORef0 algorithm with meal announcement bolus.
 
         Args:
             virtual_patient_id: Virtual patient ID
-            patient_map: Dictionary mapping virtual patient IDs to (patient_name, profile, scenario)
+            patient_map: Dictionary mapping virtual patient IDs to (patient_name, profile, carb_amount)
 
         Returns:
             Tuple of (t, BG, CHO, insulin, target_bg)
         """
-        patient_name, _, scenario_name = parse_virtual_patient_id(virtual_patient_id)
-        scenario = Scenario[scenario_name]
+        patient_name, _, carb_amount = T1DMOpenAPSParameterTuning.parse_virtual_patient_id(virtual_patient_id)
 
         p = T1DMPatient.withName(patient_name)
-        ctrl = ORefZeroController(timeout=30000)  # TODO: remove this when not in debug
 
         profile = patient_map[virtual_patient_id][1]
 
@@ -107,7 +102,27 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             profile["carb_ratio"] = p.carb_ratio
             profile["current_basal"] = p.basal * 60  # U/min to U/h
 
-        if not ctrl.initialize_patient(virtual_patient_id, profile=profile):
+        # Fixed simulation time and meal delivery at 20 minutes
+        max_simulation_time = 1450  # 24 hours + 10 minutes
+        meal_time = 20  # Deliver meal at 20 minutes
+
+        # Create meal schedule - single meal at meal_time
+        meal_schedule = [(meal_time, carb_amount)]
+
+        ctrl = ORefZeroWithMealBolus(
+            patient_name=virtual_patient_id,
+            server_url="http://localhost:3000",
+            timeout=30000,  # TODO: remove timeout when not in debug
+            profile=profile,
+            meal_schedule=meal_schedule,
+            carb_factor=profile["carb_ratio"] if profile and "carb_ratio" in profile else 10,
+            release_time_before_meal=10,  # Release bolus 10 minutes before meal
+            carb_estimation_error=0.3,  # 30% carb estimation error
+            sample_time=p.SAMPLE_TIME,
+            t_start=p.t_start,
+        )
+
+        if not ctrl.initialize():
             logger.error(
                 f"Failed to initialize controller for patient {virtual_patient_id}"
             )
@@ -118,10 +133,11 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         insulin = []
         BG = []
 
-        while p.t_elapsed < scenario.max_t:
-            carb = scenario.get_carb(p.t_elapsed, p._params.BW)
+        while p.t_elapsed < max_simulation_time:
+            # Deliver meal at exactly 20 minutes
+            carb = carb_amount if int(p.t_elapsed) == meal_time else 0
 
-            ctrl_obs = CtrlObservation(p.observation.Gsub)
+            ctrl_obs = CtrlObservation(CGM=p.observation.Gsub)
 
             if p.observation.Gsub < 39:
                 print("Patient is dead")
@@ -131,7 +147,6 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 observation=ctrl_obs,
                 reward=0,
                 done=False,
-                patient_name=virtual_patient_id,
                 meal=carb,
                 time=p.t,
             )
@@ -165,15 +180,6 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             # PatientType.ADULT: ["adolescent#003", "adult#006", "adult#009"],
             PatientType.ADULT: ["adult#007"],
         }
-
-    def get_scenarios(self) -> List[Scenario]:
-        """
-        Define scenarios to run for T1DM patients.
-
-        Returns:
-            List of Scenario objects
-        """
-        return [Scenario.ONE_DAY]
 
     def generate_profiles_by_group(self, group: PatientType) -> List[Dict[str, Any]]:
         """
@@ -225,11 +231,17 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         parameter_group = {
             PatientType.CHILD: {
                 "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
-                "dia": {"step_count": 3, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
+                "dia": {
+                    "step_count": 3,
+                    "range": (5, 8),
+                },  # DIA 5 to 8 hours, from paper
             },
             PatientType.ADULT: {
                 "sens": {"step_count": 1, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
-                "dia": {"step_count": 2, "range": (5, 8)},  # DIA 5 to 8 hours, from paper
+                "dia": {
+                    "step_count": 2,
+                    "range": (5, 8),
+                },  # DIA 5 to 8 hours, from paper
             },
         }
 
@@ -273,7 +285,7 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
     def generate_patient_map_and_simulation_config(
         self,
         run_dir: Path,
-    ) -> tuple[Dict[str, tuple[str, Dict[str, Any], Scenario]], List[tuple[str, Path]]]:
+    ) -> tuple[Dict[str, tuple[str, Dict[str, Any], int]], List[tuple[str, Path]]]:
         """
         Generate patient map and simulation configs for T1DM OpenAPS parameter tuning.
 
@@ -282,12 +294,14 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
 
         Returns:
             Tuple of (patient_map, simulation_configs)
-            - patient_map: Dictionary mapping virtual_patient_id -> (patient_name, profile, scenario)
+            - patient_map: Dictionary mapping virtual_patient_id -> (patient_name, profile, carb_amount)
             - simulation_configs: List of tuples (virtual_patient_id, img_save_dir)
         """
         # Get experiment configuration
         patients_by_group = self.get_patients_by_group()
-        scenarios = self.get_scenarios()
+
+        # Generate carb amounts from 10 to 100
+        carb_amounts = list(range(10, 101, 10))  # [10, 20, 30, ..., 100]
 
         # Generate profiles for each patient group
         patient_profiles_by_group = {}
@@ -302,17 +316,22 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             profiles = patient_profiles_by_group[group]
 
             for patient_name in patients_by_group[group]:
-                for param_idx, profile in enumerate(profiles):
-                    for scenario in scenarios:
-                        virtual_patient_id = self.create_virtual_patient_id(
-                            patient_name, param_idx, scenario.name
-                        )
-                        patient_map[virtual_patient_id] = (patient_name, profile, scenario)
+                # Create single patient-specific directory
+                patient_folder = patient_name.replace("#", "_")
+                patient_dir = run_dir / patient_folder
+                patient_dir.mkdir(exist_ok=True, parents=True)
 
-                        # Create patient-specific directory
-                        patient_folder = patient_name.replace("#", "_")
-                        patient_dir = run_dir / patient_folder / scenario.value
-                        patient_dir.mkdir(exist_ok=True, parents=True)
+                for param_idx, profile in enumerate(profiles):
+                    for carb_amount in carb_amounts:
+                        virtual_patient_id = self.create_virtual_patient_id(
+                            patient_name, param_idx, carb_amount
+                        )
+                        patient_map[virtual_patient_id] = (
+                            patient_name,
+                            profile,
+                            carb_amount,
+                        )
+
                         simulation_configs.append(
                             (
                                 virtual_patient_id,

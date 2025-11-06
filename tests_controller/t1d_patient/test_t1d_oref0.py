@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 
 from simglucose.patient.t1dpatient_2 import T1DPatient, Action
-from simglucose.controller.oref_zero import ORefZeroController
+from simglucose.controller.oref_zero import ORefZeroController, CtrlObservation
 from simglucose.simulation.scenario_simple import Scenario
 from simglucose.utils import fetch_patient_quest
 from glucose_control_analytics import plot_and_save, PatientType
@@ -48,8 +48,8 @@ def test_oref0_simulation(
     profile["carb_ratio"] = params["CR"]
     profile["current_basal"] = p._params.u2ss * p._params.BW / 6000 * 60  # to U/h
     # Initialize controller with minimal configuration
-    ctrl = ORefZeroController()
-    if not ctrl.initialize_patient(patient_name, profile=profile):
+    ctrl = ORefZeroController(patient_name=patient_name, profile=profile)
+    if not ctrl.initialize():
         raise ValueError("Failed to initialize Oref0 controller")
     logger.info(f"Patient {patient_name} and ORef0 controller initialized")
     # Data collection lists
@@ -87,7 +87,6 @@ def test_oref0_simulation(
             observation=ctrl_obs,
             reward=0,
             done=False,
-            patient_name=patient_name,
             meal=carb,
             time=current_sim_time,
         )

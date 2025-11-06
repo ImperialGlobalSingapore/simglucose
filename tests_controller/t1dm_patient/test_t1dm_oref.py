@@ -118,8 +118,8 @@ def run_patient_with_oref0(
         profile["current_basal"] = p.basal * 60  # U/min to U/h
 
     # Initialize controller
-    ctrl = ORefZeroController()
-    if not ctrl.initialize_patient(patient_name, profile=profile):
+    ctrl = ORefZeroController(patient_name=patient_name, profile=profile)
+    if not ctrl.initialize():
         raise ValueError("Failed to initialize Oref0 controller")
 
     logger.info("ORef0 controller initialized")
@@ -151,7 +151,6 @@ def run_patient_with_oref0(
             observation=ctrl_obs,
             reward=0,
             done=False,
-            patient_name=patient_name,
             meal=carb,
             time=p.t,
         )
@@ -173,7 +172,7 @@ def run_patient_with_oref0(
         patient_model_iob.append(model_iob if model_iob is not None else 0.0)
 
         # Get IOB from OpenAPS controller
-        oaps_iob_data = ctrl.get_patient_iob(patient_name)
+        oaps_iob_data = ctrl.get_iob()
         oaps_iob_value = oaps_iob_data["iob_value"] if oaps_iob_data else 0.0
         openaps_iob.append(oaps_iob_value)
 

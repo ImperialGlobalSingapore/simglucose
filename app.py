@@ -109,7 +109,9 @@ def init(request: InitRequest):
         )
 
         ctrl = ORefZeroWithMealBolus(
+            patient_name=request.patient,
             server_url=os.getenv("OPENAPS_URL", "http://localhost:3000"),
+            profile=controller_profile,
             meal_schedule=meal_schedule,
             carb_factor=controller_profile["carb_ratio"],
             release_time_before_meal=release_time_before_meal,
@@ -117,7 +119,7 @@ def init(request: InitRequest):
             sample_time=t1dm_patient.SAMPLE_TIME,
             t_start=t1dm_patient.t_start,
         )
-        ctrl.initialize_patient(request.patient, profile=controller_profile)
+        ctrl.initialize()
 
     elif request.controller_algorithm in controller_map:
         # Pass controller_kwargs if provided
@@ -139,7 +141,7 @@ def init(request: InitRequest):
     patient_map[patient_id] = PatientSession(t1dm_patient, ctrl)
 
     if request.controller_algorithm == "openaps":
-        profile = ctrl.get_patient_profile(request.patient)
+        profile = ctrl.get_profile()
         if not profile:
             raise HTTPException(
                 status_code=500,
@@ -190,7 +192,6 @@ def step(patient_id: str, request: StepRequest):
         observation=ctrl_obs,
         reward=0,
         done=False,
-        patient_name=patient.name,
         meal=request.carbs,
         time=patient.t,
     )
@@ -215,7 +216,7 @@ def step(patient_id: str, request: StepRequest):
     # Get IOB from OpenAPS controller (if using openaps)
     openaps_iob_value = 0.0
     if isinstance(ctrl, ORefZeroWithMealBolus):
-        openaps_iob_data = ctrl.get_patient_iob(patient.name)
+        openaps_iob_data = ctrl.get_iob()
         openaps_iob_value = openaps_iob_data["iob_value"] if openaps_iob_data else 0.0
 
     # Build response

@@ -9,9 +9,10 @@ and testing example.
 import logging
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
-from simglucose.controller.oref_zero_with_meal_bolus import ORefZeroWithMealBolus
-from simglucose.controller.oref_zero import CtrlObservation
-from simglucose.simulation.scenario_simple import Scenario
+from simglucose.controller.oref_zero_with_meal_bolus import (
+    ORefZeroWithMealBolus,
+    CtrlObservation,
+)
 from glucose_control_analytics import TIRConfig, plot_and_show_with_tir
 
 # Configure logger
@@ -19,41 +20,28 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 
 
-def scenario_to_meal_schedule(scenario, body_weight=None):
-    """
-    Convert a Scenario enum to a meal schedule list of tuples.
-
-    Args:
-        scenario: Scenario enum
-        body_weight: Patient body weight in kg (optional)
-
-    Returns:
-        List of tuples (time_minutes, carbs_grams)
-    """
-    meal_schedule = []
-    for t in range(0, scenario.max_t + 1):
-        carbs = scenario.get_carb(t, body_weight)
-        if carbs > 0:
-            meal_schedule.append((t, carbs))
-    return meal_schedule
-
-
 def run_patient_with_oref0_bolus(
     patient_name="adult#001",
-    scenario=Scenario.ONE_DAY,
     profile=None,
     show_plot=True,
+    meal_time=360,  # Single meal at 6 hours (360 minutes)
+    meal_amount=50,  # 50g carbs
     release_time_before_meal=10,  # minutes before meal to release bolus
     carb_estimation_error=0.3,  # +/- percentage of carb estimation error
+    simulation_time=720,  # 12 hours
 ):
     """
-    Run a simulation of a T1DM patient with ORef0 controller.
+    Run a simulation of a T1DM patient with ORef0 + Meal Bolus controller.
 
     Args:
         patient_name: Name of the patient (e.g., "adult#001", "child#001")
-        scenario: Meal scenario to simulate (NO_MEAL, SINGLE_MEAL, ONE_DAY, THREE_DAY)
         profile: Optional ORef0 profile dict with parameters like sens, dia, carb_ratio, etc.
         show_plot: Whether to display the results plot
+        meal_time: Time in minutes when meal is delivered
+        meal_amount: Amount of carbs in grams
+        release_time_before_meal: Minutes before meal to release bolus
+        carb_estimation_error: Percentage of error in carb estimation
+        simulation_time: Total simulation time in minutes
 
     Returns:
         dict: Time in range statistics
@@ -65,14 +53,16 @@ def run_patient_with_oref0_bolus(
         profile["carb_ratio"] = p.carb_ratio
         profile["current_basal"] = p.basal * 60  # U/min to U/h
 
-    # Convert scenario to meal schedule
-    meal_schedule = scenario_to_meal_schedule(scenario, p.body_weight)
+    # Single meal schedule
+    meal_schedule = [(meal_time, meal_amount)]
     logger.info(f"Meal schedule: {meal_schedule}")
 
     # Initialize combined controller
     combined_ctrl = ORefZeroWithMealBolus(
+        patient_name=patient_name,
         server_url="http://localhost:3000",
         timeout=3000,  # TODO: DEBUG only
+        profile=profile,
         meal_schedule=meal_schedule,
         carb_factor=(
             profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
@@ -84,7 +74,7 @@ def run_patient_with_oref0_bolus(
     )
 
     # Initialize patient on the controller
-    if not combined_ctrl.initialize_patient(patient_name, profile=profile):
+    if not combined_ctrl.initialize():
         raise ValueError("Failed to initialize ORefZero controller")
 
     logger.info("ORefZeroWithMealBolus controller initialized")
@@ -96,13 +86,13 @@ def run_patient_with_oref0_bolus(
     BG = []
 
     # Run simulation
-    logger.info(f"Starting simulation with scenario: {scenario.name}")
-    while p.t_elapsed < scenario.max_t:
-        # Get meal for current time
-        carb = scenario.get_carb(p.t_elapsed, p.body_weight)
+    logger.info(f"Starting simulation for {simulation_time} minutes")
+    while p.t_elapsed < simulation_time:
+        # Deliver meal at meal_time
+        carb = meal_amount if p.t_elapsed == meal_time else 0
 
-        # Create observation for controller
-        ctrl_obs = CtrlObservation(CGM=p.observation.Gsub, bolus=0)
+        # Create observation for controller (just CGM for ORefZeroWithMealBolus)
+        ctrl_obs = CtrlObservation(CGM=p.observation.Gsub)
 
         # Check for severe hypoglycemia
         if p.observation.Gsub < 39:
@@ -114,7 +104,6 @@ def run_patient_with_oref0_bolus(
             observation=ctrl_obs,
             reward=0,
             done=False,
-            patient_name=patient_name,
             meal=carb,
             time=p.t,  # datetime for both controllers (meal_bolus calculates elapsed from t_start)
         )
@@ -155,7 +144,7 @@ def run_patient_with_oref0_bolus(
             CHO,
             insulin,
             combined_ctrl.target_bg,
-            f"T1DM Patient {patient_name} with ORef0 + Meal Bolus - {scenario.name}",
+            f"T1DM Patient {patient_name} with ORef0 + Meal Bolus - {meal_amount}g at {meal_time}min",
             time_in_range,
             tir_config,
         )
@@ -186,9 +175,11 @@ if __name__ == "__main__":
 
     run_patient_with_oref0_bolus(
         patient_name="adult#007",
-        scenario=Scenario.SINGLE_MEAL,
         profile=custom_profile,
         show_plot=True,
-        release_time_before_meal=0,
-        carb_estimation_error=0.5,  # Assume 50% carb estimation error for testing
+        meal_time=20,  # Meal at 6 hours
+        meal_amount=75,  # 50g carbs
+        release_time_before_meal=10,
+        carb_estimation_error=0.3,  # 30% carb estimation error
+        simulation_time=720,  # 12 hours
     )

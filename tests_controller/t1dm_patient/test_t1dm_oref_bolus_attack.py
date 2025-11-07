@@ -66,7 +66,6 @@ def patient_oref0_with_meal_bolus(
         ),
         release_time_before_meal=release_time_before_meal,
         carb_estimation_error=carb_estimation_error,
-        sample_time=p.SAMPLE_TIME,
         t_start=p.t_start,
     )
     ctrl.initialize()

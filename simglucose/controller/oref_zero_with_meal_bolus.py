@@ -33,7 +33,6 @@ class ORefZeroWithMealBolus(Controller):
         carb_factor=10,
         release_time_before_meal=10,
         carb_estimation_error=0.3,
-        sample_time=1,
         t_start=None,
     ):
         """
@@ -68,7 +67,6 @@ class ORefZeroWithMealBolus(Controller):
             carb_factor=carb_factor,
             release_time_before_meal=release_time_before_meal,
             carb_estimation_error=carb_estimation_error,
-            sample_time=sample_time,
             t_start=t_start,
         )
 

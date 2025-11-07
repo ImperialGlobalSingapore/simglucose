@@ -20,7 +20,6 @@ class MealAnnouncementBolusController:
         carb_factor=10,
         release_time_before_meal=10,  # minutes before meal to release bolus
         carb_estimation_error=0.3,  # +/- percentage of carb estimation error
-        sample_time=1,  # time period over which to deliver bolus (minutes)
         t_start=None,  # patient start time (datetime)
     ):
         """
@@ -39,7 +38,6 @@ class MealAnnouncementBolusController:
         self.carb_factor = carb_factor
         self.release_time_before_meal = release_time_before_meal
         self.carb_estimation_error = carb_estimation_error
-        self.sample_time = sample_time
         self.t_start = t_start
 
     def policy(self, t):
@@ -78,12 +76,9 @@ class MealAnnouncementBolusController:
                     meal_amount *= 1 + random_factor
 
                 # Calculate bolus in total units: meal amount / carb factor
-                bolus_total = meal_amount / self.carb_factor  # U
+                bolus = meal_amount / self.carb_factor  # U
 
-                # Convert to rate (U/min) by dividing by sample_time
-                bolus_rate = bolus_total / self.sample_time  # U/min
-
-                return Action(bolus=bolus_rate)
+                return Action(bolus=bolus)  # U
 
         # No meal coming up, return zero bolus
         return Action(bolus=0)

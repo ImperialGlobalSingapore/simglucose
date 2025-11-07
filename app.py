@@ -116,7 +116,6 @@ def init(request: InitRequest):
             carb_factor=controller_profile["carb_ratio"],
             release_time_before_meal=release_time_before_meal,
             carb_estimation_error=carb_estimation_error,
-            sample_time=t1dm_patient.SAMPLE_TIME,
             t_start=t1dm_patient.t_start,
         )
         ctrl.initialize()

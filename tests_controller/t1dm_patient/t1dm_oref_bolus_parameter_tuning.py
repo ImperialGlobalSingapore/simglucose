@@ -115,10 +115,11 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             timeout=30000,  # TODO: remove timeout when not in debug
             profile=profile,
             meal_schedule=meal_schedule,
-            carb_factor=profile["carb_ratio"] if profile and "carb_ratio" in profile else 10,
+            carb_factor=(
+                profile["carb_ratio"] if profile and "carb_ratio" in profile else 10
+            ),
             release_time_before_meal=10,  # Release bolus 10 minutes before meal
             carb_estimation_error=0.3,  # 30% carb estimation error
-            sample_time=p.SAMPLE_TIME,
             t_start=p.t_start,
         )
 

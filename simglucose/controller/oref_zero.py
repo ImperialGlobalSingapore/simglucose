@@ -52,8 +52,13 @@ class ORefZeroController(Controller):
         self.bolus_history = []  # list of bolus entries
         self.pump_history = []  # list of pump events
         self.collect_meal = 0  # accumulated meal amount
-        self.collect_bolus = 0  # accumulated bolus
-        self.last_insulin = {"basal": 0.0, "bolus": 0.0}  # last insulin recommendation
+        self.pending_bolus_entries = (
+            []
+        )  # list of bolus entries waiting to be sent to oref0
+        self.last_insulin = {
+            "basal": 0.0,
+            "bolus": 0.0,
+        }  # last insulin recommendation (from oref0)
         self.last_iob = {}  # last IOB (Insulin on Board) data
         self.last_policy_context = {}  # full context from last calculation
         self.is_initialized = False  # track initialization status
@@ -227,8 +232,6 @@ class ORefZeroController(Controller):
     def _prepare_new_data(
         self,
         glucose: float,
-        meal: float,
-        meal_bolus: float,
         timestamp: str,
     ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
@@ -249,25 +252,24 @@ class ORefZeroController(Controller):
             self.glucose_history.append(glucose_entry)
 
         # Add carb entry if we have a meal
-        if meal > 0:
+        if self.collect_meal > 0:
             carb_entry = {
                 "timestamp": timestamp,
-                "carbs": meal,
+                "carbs": self.collect_meal,
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history.append(carb_entry)
+            self.collect_meal = 0
 
-        if meal_bolus > 0:
-            bolus_entry = {
-                "timestamp": timestamp,
-                "bolus": meal_bolus,
-            }
-            new_data["bolusEntries"] = bolus_entry
-            self.bolus_history.append(bolus_entry)
+        # Add all pending bolus entries (with their actual delivery timestamps)
+        if len(self.pending_bolus_entries) > 0:
+            new_data["bolusEntries"] = self.pending_bolus_entries.copy()
+            self.bolus_history.extend(self.pending_bolus_entries)
+            self.pending_bolus_entries = (
+                []
+            )  # Clear pending boluses after sending to oref0
 
-        # TOBECONFIRM
         # Add pump history entries (insulin deliveries from previous actions)
-        # We'll collect all pump events since last update
         if len(self.pump_history) > 0:
             new_data["pumpHistory"] = self.pump_history.copy()
             # Clear the pump history after sending
@@ -306,30 +308,37 @@ class ORefZeroController(Controller):
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time
 
-        # accumulate meal data
+        # Accumulate meal data
         self.collect_meal += meal
-        self.collect_bolus += observation.bolus
 
-        # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
+        # Record meal bolus with its actual delivery timestamp (if any)
+        # This is for oref0 IOB tracking only, not for returning to patient
+        if observation.bolus > 0:
+            bolus_entry = {
+                "timestamp": timestamp,
+                "bolus": observation.bolus,
+            }
+            self.pending_bolus_entries.append(bolus_entry)
+
+        # If previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
+        # Return early without updating oref0
         if previous_timestamp is not None and (
             datetime.fromisoformat(timestamp.rstrip("Z"))
             < datetime.fromisoformat(previous_timestamp.rstrip("Z"))
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
+            # Return last oref0 recommendation (basal and oref0's bolus only)
+            # Meal bolus will be added by the wrapper controller
             return Action(
                 basal=self.last_insulin["basal"],
-                bolus=self.last_insulin["bolus"],
+                bolus=self.last_insulin["bolus"],  # oref0's bolus (SMB/microbolus)
             )
 
         # Extract glucose level
-        glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
+        glucose_level = observation.CGM
 
-        # Prepare new data
-        new_data = self._prepare_new_data(
-            glucose_level, self.collect_meal, self.collect_bolus, timestamp
-        )
-        self.collect_meal = 0  # Reset after sending
-        self.collect_bolus = 0  # Reset after sending
+        # Prepare new data (will include all pending bolus entries with their timestamps)
+        new_data = self._prepare_new_data(glucose_level, timestamp)
         print(new_data)
         # Prepare calculation request
         calc_data = {

@@ -14,21 +14,25 @@ Parameters Being Tuned:
     - sens: Insulin Sensitivity Factor (ISF) in mg/dL per unit
     - dia: Duration of Insulin Action in hours
     - max_iob: Maximum Insulin On Board in units
+    - min_bg: Lower glucose target in mg/dL
+    - max_bg: Upper glucose target in mg/dL
 
 Tuning Ranges (CREATE Trial):
     Children (<16 years):
         - sens: 50-100 mg/dL/U
         - dia: 5-8 hours
         - max_iob: 15-20u
+        - min_bg: 70-90 mg/dL (3.9-5.0 mmol/L)
+        - max_bg: 117-180 mg/dL (6.5-10.0 mmol/L)
 
     Adults (>18 years):
         - sens: 30-50 mg/dL/U
         - dia: 5-8 hours
         - max_iob: 25-30u
+        - min_bg: 70-90 mg/dL (3.9-5.0 mmol/L)
+        - max_bg: 117-180 mg/dL (6.5-10.0 mmol/L)
 
 Fixed Parameters (in profiles):
-    - max_bg: 117 mg/dL (CREATE Trial upper limit)
-    - min_bg: 90 mg/dL (CREATE Trial lower limit)
     - max_basal: 4 U/hr
     - carb_ratio: Patient-specific (from simglucose model)
     - current_basal: Patient-specific (from simglucose model)
@@ -231,18 +235,20 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         Generate OpenAPS parameter profiles for T1DM patient groups.
 
         This method creates parameter combinations based on literature values
-        for different age groups.
+        for different age groups, including tunable glucose target ranges.
 
         Args:
             group: Patient type group (CHILD or ADULT)
 
         Returns:
             List of profile dictionaries with OpenAPS parameters
+
+        Note:
+            Glucose target ranges:
+            - Algorithm control target (CREATE Trial): 90-117 mg/dL (5.0-6.5 mmol/L)
+            - Clinical outcome target (CREATE Trial): 70-180 mg/dL (3.9-10.0 mmol/L)
+            Both min_bg and max_bg are now tunable parameters in parameter_group.
         """
-        # Glucose targets from CREATE Trial (Table S2, page 10)
-        # Target must be single number between 5.0-6.5 mmol/L (90-117 mg/dL)
-        min_bg = 90  # mg/dL (5.0 mmol/L - lower limit)
-        max_bg = 117  # mg/dL (6.5 mmol/L - upper limit from CREATE Trial)
         max_basal = 4
 
         # Define default profiles for each age group based on CREATE Trial and oref0 defaults
@@ -253,8 +259,8 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 "sens": 150,  # ISF (oref0: lib/profile/index.js:169)
                 "dia": 7,  # Duration of Insulin Action in hours (oref0: lib/profile/index.js:119)
                 "carb_ratio": 30,  # I:C ratio (oref0: lib/profile/index.js:176)
-                "max_bg": max_bg,  # Upper glucose target (oref0: lib/profile/index.js:154)
-                "min_bg": min_bg,  # Lower glucose target (oref0: lib/profile/index.js:154)
+                "min_bg": 90,  # Lower glucose target
+                "max_bg": 110,  # Upper glucose target
                 # "isfProfile": {
                 #     "sensitivities": [{"offset": 0, "sensitivity": 150}] # same as sens
                 # },
@@ -267,8 +273,8 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 "sens": 45,  # ISF (oref0: lib/profile/index.js:169)
                 "dia": 7.0,  # Duration of Insulin Action in hours (oref0: lib/profile/index.js:119)
                 "carb_ratio": 20,  # I:C ratio (oref0: lib/profile/index.js:176)
-                "max_bg": max_bg,  # Upper glucose target (oref0: lib/profile/index.js:154)
-                "min_bg": min_bg,  # Lower glucose target (oref0: lib/profile/index.js:154)
+                "min_bg": 90,  # Lower glucose target
+                "max_bg": 110,  # Upper glucose target
                 # "isfProfile": {
                 #     "sensitivities": [{"offset": 0, "sensitivity": 60}] # same as sens
                 # },
@@ -291,25 +297,41 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                     "step_count": 3,
                     "range": (5, 8),
                 },  # DIA 5-8 hours (CREATE: Table S2, Page 9)
+                "min_bg": {
+                    "step_count": 3,
+                    "range": (70, 90),
+                },  # Lower glucose target: 70-90 mg/dL (3.9-5.0 mmol/L)
+                "max_bg": {
+                    "step_count": 4,
+                    "range": (117, 180),
+                },  # Upper glucose target: 117-180 mg/dL (6.5-10.0 mmol/L)
                 # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
                 "max_iob": {
-                    "step_count": 2,
+                    "step_count": 3,
                     "range": (15, 20),
                 },  # Max IOB 15-20u for children (CREATE: Table S2, Page 14, Age <16)
             },
             PatientType.ADULT: {
                 # PROFILE SETTINGS (oref0: lib/profile/index.js)
                 "sens": {
-                    "step_count": 3,
+                    "step_count": 4,
                     "range": (30, 50),
                 },  # ISF 1:30 to 1:50 mg/dL (CREATE: GPT recommendation)
                 "dia": {
-                    "step_count": 2,
+                    "step_count": 3,
                     "range": (5, 8),
                 },  # DIA 5-8 hours (CREATE: Table S2, Page 9)
+                "min_bg": {
+                    "step_count": 3,
+                    "range": (70, 90),
+                },  # Lower glucose target: 70-90 mg/dL (3.9-5.0 mmol/L)
+                "max_bg": {
+                    "step_count": 4,
+                    "range": (117, 180),
+                },  # Upper glucose target: 117-180 mg/dL (6.5-10.0 mmol/L)
                 # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
                 "max_iob": {
-                    "step_count": 2,
+                    "step_count": 3,
                     "range": (25, 30),
                 },  # Max IOB 25-30u for adults (CREATE: Table S2, Page 14, Age >18)
             },
@@ -424,7 +446,7 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                             )
 
         # DEBUG: Uncomment the next line to test with only first 4 configs
-        simulation_configs = simulation_configs[:4]
+        # simulation_configs = simulation_configs[:4]
 
         return patient_map, simulation_configs
 

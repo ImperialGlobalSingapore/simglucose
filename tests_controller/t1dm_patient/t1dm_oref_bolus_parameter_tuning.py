@@ -118,20 +118,23 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         return patient_name, param_idx, carb_amount
 
     def create_virtual_patient_id(
-        self, patient_name: str, param_idx: int, carb_amount: int
+        self, patient_name: str, param_idx: int, carb_amount: int, trial: int = None
     ) -> str:
         """
-        Create a virtual patient ID that encodes patient, parameter index, and carb amount.
+        Create a virtual patient ID that encodes patient, parameter index, carb amount, and trial.
 
         Args:
             patient_name: Patient name (e.g., "adult#001")
             param_idx: Parameter set index
             carb_amount: Amount of carbs in grams (e.g., 50)
+            trial: Trial number for repeated runs (e.g., 0, 1, 2)
 
         Returns:
-            Virtual patient ID (e.g., "adult_001_param_0_carb_50")
+            Virtual patient ID (e.g., "adult_001_param_0_carb_50_trial_0")
         """
         base_name = patient_name.replace("#", "_")
+        if trial is not None:
+            return f"{base_name}_param_{param_idx}_carb_{carb_amount}_trial_{trial}"
         return f"{base_name}_param_{param_idx}_carb_{carb_amount}"
 
     @staticmethod
@@ -368,8 +371,16 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         if self._patients_by_group is None:
             raise ValueError("Patients by group not set for parameter tuning.")
 
-        # Generate carb amounts from 10 to 100
-        carb_amounts = list(range(10, 101, 10))  # [10, 20, 30, ..., 100]
+        # Generate 10 carb amounts from normal distribution (15-130g)
+        # Using mean of 70g and std of 30g
+        np.random.seed(42)  # For reproducibility
+        carb_amounts = np.random.normal(loc=70, scale=30, size=10)
+        carb_amounts = np.clip(
+            carb_amounts, 15, 130
+        )  # Ensure values stay within 15-130g
+        carb_amounts = sorted(
+            [int(round(carb)) for carb in carb_amounts]
+        )  # Round to integers and sort
 
         # Generate profiles for each patient group
         patient_profiles_by_group = {}
@@ -379,6 +390,9 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         # Build patient map and simulation configs
         patient_map = {}
         simulation_configs = []
+
+        # Number of trials to repeat each configuration (for carb estimation error randomness)
+        num_trials = 3
 
         for group in self._patients_by_group.keys():
             profiles = patient_profiles_by_group[group]
@@ -391,21 +405,26 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
 
                 for param_idx, profile in enumerate(profiles):
                     for carb_amount in carb_amounts:
-                        virtual_patient_id = self.create_virtual_patient_id(
-                            patient_name, param_idx, carb_amount
-                        )
-                        patient_map[virtual_patient_id] = (
-                            patient_name,
-                            profile,
-                            carb_amount,
-                        )
-
-                        simulation_configs.append(
-                            (
-                                virtual_patient_id,
-                                patient_dir,
+                        # Repeat each configuration num_trials times
+                        for trial in range(num_trials):
+                            virtual_patient_id = self.create_virtual_patient_id(
+                                patient_name, param_idx, carb_amount, trial
                             )
-                        )
+                            patient_map[virtual_patient_id] = (
+                                patient_name,
+                                profile,
+                                carb_amount,
+                            )
+
+                            simulation_configs.append(
+                                (
+                                    virtual_patient_id,
+                                    patient_dir,
+                                )
+                            )
+
+        # DEBUG: Uncomment the next line to test with only first 4 configs
+        simulation_configs = simulation_configs[:4]
 
         return patient_map, simulation_configs
 

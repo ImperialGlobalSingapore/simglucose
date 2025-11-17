@@ -117,6 +117,23 @@ class OpenAPSParameterTuningBase(ABC):
             Tuple of (virtual_patient_id, img_save_dir, time_in_range_or_error)
         """
         try:
+            # Print configuration when simulation starts
+            patient_name, profile, scenario = patient_map[virtual_patient_id]
+            logger.info(f"\n{'='*80}")
+            logger.info(f"🚀 Starting simulation: {virtual_patient_id}")
+            logger.info(f"   Patient: {patient_name}")
+            logger.info(f"   Scenario: {scenario}")
+            logger.info(f"   Profile Configuration:")
+            for key, value in profile.items():
+                # Format nested dicts nicely
+                if isinstance(value, dict):
+                    logger.info(f"      {key}:")
+                    for sub_key, sub_value in value.items():
+                        logger.info(f"         {sub_key}: {sub_value}")
+                else:
+                    logger.info(f"      {key}: {value}")
+            logger.info(f"{'='*80}\n")
+
             # Call the simulation_loop static method
             result = simulation_loop(
                 virtual_patient_id=virtual_patient_id,

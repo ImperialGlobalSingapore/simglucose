@@ -79,6 +79,10 @@ class ORefZeroController(Controller):
             "maxCOB": 120,  # Maximum carbs on board  # from oref0 code
             "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
             "min_5m_carbimpact": 8,  # Minimum carb absorption rate # from paper and oref0 code
+            "max_daily_safety_multiplier": 3,  # Safety multiplier vs max_daily_basal (oref0 default: 3)
+            "current_basal_safety_multiplier": 4,  # Safety multiplier vs current basal (oref0 default: 4)
+            "autosens_max": 1.2,  # Max autosens ratio (oref0 default: 1.2)
+            "autosens_min": 0.7,  # Min autosens ratio (oref0 default: 0.7)
             "type": "current",  # Profile type
         }
 
@@ -184,10 +188,15 @@ class ORefZeroController(Controller):
             logger.error("Profile min_bg must be less than max_bg")
             return False
 
-        # make sure isfProfile has same sensitivity as sens
+        # Auto-set isfProfile from sens (same sensitivity throughout the day)
         profile["isfProfile"] = {
             "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
         }
+
+        # Auto-set max_daily_basal from current_basal (simglucose uses flat basal schedules)
+        # max_daily_basal should be the highest basal rate from the patient's schedule
+        profile["max_daily_basal"] = profile["current_basal"]
+
         return True
 
     @staticmethod

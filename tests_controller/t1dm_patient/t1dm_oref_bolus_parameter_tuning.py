@@ -1,3 +1,51 @@
+"""
+T1DM OpenAPS Parameter Tuning using CREATE Trial Settings.
+
+This module implements parameter tuning for Type 1 Diabetes patients using the
+AnyDANA-Loop (OpenAPS) configuration from the CREATE Trial.
+
+CREATE Trial Reference:
+    Title: "Closed-Loop Insulin Delivery in Children with Type 1 Diabetes"
+    Journal: New England Journal of Medicine (2022)
+    DOI: https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
+    Supplementary Appendix: Table S2 - Technical Manual for AnyDANA-Loop
+
+Parameters Being Tuned:
+    - sens: Insulin Sensitivity Factor (ISF) in mg/dL per unit
+    - dia: Duration of Insulin Action in hours
+    - max_iob: Maximum Insulin On Board in units
+
+Tuning Ranges (CREATE Trial):
+    Children (<16 years):
+        - sens: 50-100 mg/dL/U
+        - dia: 5-8 hours
+        - max_iob: 15-20u
+
+    Adults (>18 years):
+        - sens: 30-50 mg/dL/U
+        - dia: 5-8 hours
+        - max_iob: 25-30u
+
+Fixed Parameters (in profiles):
+    - max_bg: 117 mg/dL (CREATE Trial upper limit)
+    - min_bg: 90 mg/dL (CREATE Trial lower limit)
+    - max_basal: 4 U/hr
+    - carb_ratio: Patient-specific (from simglucose model)
+    - current_basal: Patient-specific (from simglucose model)
+
+Controller Default Parameters (oref_zero.py):
+    - max_daily_safety_multiplier: 3
+    - current_basal_safety_multiplier: 4
+    - autosens_max: 1.2
+    - autosens_min: 0.7
+    - maxCOB: 120g
+    - min_5m_carbimpact: 8 mg/dL/5min
+
+Auto-Configured Parameters (oref_zero.py):
+    - isfProfile: Auto-set from sens
+    - max_daily_basal: Auto-set from current_basal
+"""
+
 import logging
 import matplotlib
 from pathlib import Path
@@ -195,54 +243,79 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         Returns:
             List of profile dictionaries with OpenAPS parameters
         """
-        target_bg = 100  # mg/dL
-        min_bg = 90  # mg/dL
-        max_bg = target_bg * 2 - min_bg  # mg/dL
+        # Glucose targets from CREATE Trial (Table S2, page 10)
+        # Target must be single number between 5.0-6.5 mmol/L (90-117 mg/dL)
+        min_bg = 90  # mg/dL (5.0 mmol/L - lower limit)
+        max_bg = 117  # mg/dL (6.5 mmol/L - upper limit from CREATE Trial)
+        max_basal = 4
 
-        # Define parameter ranges for each age group based on literature
+        # Define default profiles for each age group based on CREATE Trial and oref0 defaults
+        # Variable names match oref0 repository: D:\Repos\SimglucoseProjects\oref0\lib\profile\index.js
         patient_group_default_profiles = {
             PatientType.CHILD: {
-                "sens": 150,
-                "dia": 7,
-                "carb_ratio": 30,
-                "max_iob": 3,  # from paper, max 20, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
-                "max_basal": 4,  # from paper, max 10
-                "max_daily_basal": 0.9,  # from paper
-                "max_bg": max_bg,
-                "min_bg": min_bg,
-                "maxCOB": 120,  # from oref0 code
-                "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 150}]},
-                "min_5m_carbimpact": 8,  # from paper and oref0 code
+                # PROFILE SETTINGS
+                "sens": 150,  # ISF (oref0: lib/profile/index.js:169)
+                "dia": 7,  # Duration of Insulin Action in hours (oref0: lib/profile/index.js:119)
+                "carb_ratio": 30,  # I:C ratio (oref0: lib/profile/index.js:176)
+                "max_bg": max_bg,  # Upper glucose target (oref0: lib/profile/index.js:154)
+                "min_bg": min_bg,  # Lower glucose target (oref0: lib/profile/index.js:154)
+                # "isfProfile": {
+                #     "sensitivities": [{"offset": 0, "sensitivity": 150}] # same as sens
+                # },
+                # SAFETY SETTINGS
+                "max_iob": 3,
+                "max_basal": max_basal,
             },
             PatientType.ADULT: {
-                "sens": 45,
-                "dia": 7.0,
-                "carb_ratio": 20,
-                "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
-                "max_basal": 4,  # from paper, max 10
-                "max_daily_basal": 0.9,  # from paper
-                "max_bg": max_bg,
-                "min_bg": min_bg,
-                "maxCOB": 120,  # from oref0 code
-                "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
-                "min_5m_carbimpact": 8,  # from paper and oref0 code
+                # PROFILE SETTINGS
+                "sens": 45,  # ISF (oref0: lib/profile/index.js:169)
+                "dia": 7.0,  # Duration of Insulin Action in hours (oref0: lib/profile/index.js:119)
+                "carb_ratio": 20,  # I:C ratio (oref0: lib/profile/index.js:176)
+                "max_bg": max_bg,  # Upper glucose target (oref0: lib/profile/index.js:154)
+                "min_bg": min_bg,  # Lower glucose target (oref0: lib/profile/index.js:154)
+                # "isfProfile": {
+                #     "sensitivities": [{"offset": 0, "sensitivity": 60}] # same as sens
+                # },
+                # SAFETY SETTINGS
+                "max_iob": 12,
+                "max_basal": max_basal,
             },
         }
 
+        # Parameter ranges based on CREATE Trial Supplementary Appendix
+        # Variable names match oref0 repository: D:\Repos\SimglucoseProjects\oref0\lib\profile\index.js
         parameter_group = {
             PatientType.CHILD: {
-                "sens": {"step_count": 3, "range": (50, 100)},  # 1:50 to 1:100, gpt
+                # PROFILE SETTINGS (oref0: lib/profile/index.js)
+                "sens": {
+                    "step_count": 5,
+                    "range": (50, 100),
+                },  # ISF 1:50 to 1:100 mg/dL (CREATE: GPT recommendation)
                 "dia": {
                     "step_count": 3,
                     "range": (5, 8),
-                },  # DIA 5 to 8 hours, from paper
+                },  # DIA 5-8 hours (CREATE: Table S2, Page 9)
+                # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
+                "max_iob": {
+                    "step_count": 2,
+                    "range": (15, 20),
+                },  # Max IOB 15-20u for children (CREATE: Table S2, Page 14, Age <16)
             },
             PatientType.ADULT: {
-                "sens": {"step_count": 1, "range": (30, 50)},  # ISF 1:30 to 1:50, gpt
+                # PROFILE SETTINGS (oref0: lib/profile/index.js)
+                "sens": {
+                    "step_count": 3,
+                    "range": (30, 50),
+                },  # ISF 1:30 to 1:50 mg/dL (CREATE: GPT recommendation)
                 "dia": {
                     "step_count": 2,
                     "range": (5, 8),
-                },  # DIA 5 to 8 hours, from paper
+                },  # DIA 5-8 hours (CREATE: Table S2, Page 9)
+                # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
+                "max_iob": {
+                    "step_count": 2,
+                    "range": (25, 30),
+                },  # Max IOB 25-30u for adults (CREATE: Table S2, Page 14, Age >18)
             },
         }
 

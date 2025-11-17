@@ -50,7 +50,7 @@ import logging
 import matplotlib
 from pathlib import Path
 from collections import namedtuple
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import numpy as np
 from itertools import product
 
@@ -118,7 +118,7 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         return patient_name, param_idx, carb_amount
 
     def create_virtual_patient_id(
-        self, patient_name: str, param_idx: int, carb_amount: int, trial: int = None
+        self, patient_name: str, param_idx: int, carb_amount: int, trial: Optional[int] = None
     ) -> str:
         """
         Create a virtual patient ID that encodes patient, parameter index, carb amount, and trial.

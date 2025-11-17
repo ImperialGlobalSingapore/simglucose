@@ -32,16 +32,18 @@ class OpenAPSParameterTuningBase(ABC):
     implement the abstract methods to customize behavior for specific use cases.
     """
 
-    def __init__(self, output_dir: Path, tir_config: Optional[TIRConfig] = None):
+    def __init__(self, output_dir: Path, tir_config: Optional[TIRConfig] = None, max_workers: Optional[int] = None):
         """
         Initialize the parameter tuning experiment.
 
         Args:
             output_dir: Base directory for saving results
             tir_config: TIR configuration (defaults to BASIC if not provided)
+            max_workers: Maximum number of parallel workers (defaults to CPU count if not provided)
         """
         self.output_dir = output_dir
         self.tir_config = tir_config or TIRConfig()
+        self.max_workers = max_workers
         self.patient_map = {}
         self.simulation_configs = []
         self.profile_keys = []
@@ -264,7 +266,11 @@ class OpenAPSParameterTuningBase(ABC):
         results_list = []
         failed_configs = []
 
-        num_workers = min(multiprocessing.cpu_count(), len(simulation_configs))
+        # Use max_workers if set, otherwise use CPU count
+        if self.max_workers is not None:
+            num_workers = min(self.max_workers, len(simulation_configs))
+        else:
+            num_workers = min(multiprocessing.cpu_count(), len(simulation_configs))
 
         with ProcessPoolExecutor(max_workers=num_workers) as executor:
             # Submit all simulations

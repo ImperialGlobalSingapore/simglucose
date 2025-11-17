@@ -431,7 +431,8 @@ if __name__ == "__main__":
     }
 
     # Create and run the experiment
-    experiment = T1DMOpenAPSParameterTuning(output_dir=result_dir)
+    # Limit to 6 parallel workers (good balance for 14-core system)
+    experiment = T1DMOpenAPSParameterTuning(output_dir=result_dir, max_workers=6)
     experiment.set_patients_by_group(patients_by_group)
     results = experiment.run()
 

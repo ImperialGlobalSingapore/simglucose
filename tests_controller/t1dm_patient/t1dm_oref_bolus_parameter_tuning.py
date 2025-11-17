@@ -78,6 +78,15 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
     parameter tuning using the ORef0 controller.
     """
 
+    def set_patients_by_group(self, patients: Dict[PatientType, List[str]]):
+        """
+        Set the patient groups for parameter tuning.
+
+        Args:
+            patients: Dictionary mapping PatientType to list of patient names
+        """
+        self._patients_by_group = patients
+
     @staticmethod
     def parse_virtual_patient_id(virtual_patient_id: str) -> tuple[str, int, int]:
         """
@@ -213,22 +222,6 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             )
 
         return t, BG, CHO, insulin, ctrl.target_bg
-
-    def get_patients_by_group(self) -> Dict[PatientType, List[str]]:
-        """
-        Define T1DM patients to use for parameter tuning.
-
-        Following paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913
-        Resplit patients into 2 groups: children (7-12), adults (16-70)
-
-        Returns:
-            Dictionary mapping PatientType to list of patient names
-        """
-        return {
-            # PatientType.CHILD: ["child#002", "child#008", "child#010"],
-            # PatientType.ADULT: ["adolescent#003", "adult#006", "adult#009"],
-            PatientType.ADULT: ["adult#007"],
-        }
 
     def generate_profiles_by_group(self, group: PatientType) -> List[Dict[str, Any]]:
         """
@@ -372,24 +365,25 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
             - simulation_configs: List of tuples (virtual_patient_id, img_save_dir)
         """
         # Get experiment configuration
-        patients_by_group = self.get_patients_by_group()
+        if self._patients_by_group is None:
+            raise ValueError("Patients by group not set for parameter tuning.")
 
         # Generate carb amounts from 10 to 100
         carb_amounts = list(range(10, 101, 10))  # [10, 20, 30, ..., 100]
 
         # Generate profiles for each patient group
         patient_profiles_by_group = {}
-        for group in patients_by_group.keys():
+        for group in self._patients_by_group.keys():
             patient_profiles_by_group[group] = self.generate_profiles_by_group(group)
 
         # Build patient map and simulation configs
         patient_map = {}
         simulation_configs = []
 
-        for group in patients_by_group.keys():
+        for group in self._patients_by_group.keys():
             profiles = patient_profiles_by_group[group]
 
-            for patient_name in patients_by_group[group]:
+            for patient_name in self._patients_by_group[group]:
                 # Create single patient-specific directory
                 patient_folder = patient_name.replace("#", "_")
                 patient_dir = run_dir / patient_folder
@@ -429,8 +423,16 @@ if __name__ == "__main__":
     Goal: Find optimal parameter set for each patient that achieves
     realistic time-in-range distribution following the paper.
     """
+    # Define patient groups for parameter tuning
+    patients_by_group = {
+        # PatientType.CHILD: ["child#002", "child#008", "child#010"],
+        # PatientType.ADULT: ["adolescent#003", "adult#006", "adult#009"],
+        PatientType.ADULT: ["adult#007"],
+    }
+
     # Create and run the experiment
     experiment = T1DMOpenAPSParameterTuning(output_dir=result_dir)
+    experiment.set_patients_by_group(patients_by_group)
     results = experiment.run()
 
     logger.info(f"Experiment completed with {len(results)} results")

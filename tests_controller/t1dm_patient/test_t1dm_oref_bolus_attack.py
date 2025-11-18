@@ -25,7 +25,7 @@ file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 
 img_dir = parent_folder / "imgs"
-test_patient_dir = img_dir / "test_attack"
+test_patient_dir = img_dir / "test_attack" / "attack_oref_zero_bolus"
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 image_save_dir = test_patient_dir / timestamp
 image_save_dir.mkdir(parents=True, exist_ok=True)
@@ -125,7 +125,8 @@ def patient_oref0_with_meal_bolus(
     time_in_range = tir_config.calculate_time_in_range(BG)
 
     sanitized_patient_name = patient_name.replace("#", "_")
-    fig_title = f"test_patient_{sanitized_patient_name}_{meal_amount}_at_{meal_time}min"
+    attack_suffix = "with_attack" if attacking else "no_attack"
+    fig_title = f"test_patient_{sanitized_patient_name}_{meal_amount}_at_{meal_time}min_{attack_suffix}"
     if save_fig:
         file_name = img_save_dir / f"{fig_title}.png"
         plot_and_save_with_tir(
@@ -150,35 +151,56 @@ if __name__ == "__main__":
     to attack the patient CGM readings and see if OpenAPS can be tricked into delivering more insulin
     """
     patient_name = "adult#007"
-    target_bg = 100  # mg/dL
-    min_bg = 90  # mg/dL
-    max_bg = 140  # mg/dL
     profile = {
-        "sens": 45,
-        "dia": 7.0,
-        "carb_ratio": 20,
-        "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+        "sens": 50,
+        "dia": 8.0,
+        "max_iob": 27.5,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
         "max_basal": 4,  # from paper, max 10
-        "max_daily_basal": 0.9,  # from paper
-        "max_bg": max_bg,
-        "min_bg": min_bg,
-        "maxCOB": 120,  # from oref0 code
-        "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 60}]},
-        "min_5m_carbimpact": 8,  # from paper and oref0 code
+        "max_bg": 117,
+        "min_bg": 90,
     }
 
     attack_step = 1.8  # mg/dL per minute
     attack_maintain = 30  # minutes
+    meal_time = 20  # Single meal at 20 minutes
+    meal_amount = 75  # 75g carbs
+    release_time_before_meal = 10
+    carb_estimation_error = 0.3
 
-    patient_oref0_with_meal_bolus(
+    # Run with attack
+    logger.info("Running simulation WITH attack")
+    tir_with_attack = patient_oref0_with_meal_bolus(
         patient_name=patient_name,
         profile=profile,
         save_fig=True,
         attacking=True,
         attack_step=attack_step,
         attack_maintain=attack_maintain,
-        meal_time=20,  # Single meal at 6 hours
-        meal_amount=75,  # 50g carbs
-        release_time_before_meal=10,
-        carb_estimation_error=0.3,
+        meal_time=meal_time,
+        meal_amount=meal_amount,
+        release_time_before_meal=release_time_before_meal,
+        carb_estimation_error=carb_estimation_error,
     )
+
+    # Run without attack
+    logger.info("Running simulation WITHOUT attack")
+    tir_without_attack = patient_oref0_with_meal_bolus(
+        patient_name=patient_name,
+        profile=profile,
+        save_fig=True,
+        attacking=False,
+        attack_step=attack_step,
+        attack_maintain=attack_maintain,
+        meal_time=meal_time,
+        meal_amount=meal_amount,
+        release_time_before_meal=release_time_before_meal,
+        carb_estimation_error=carb_estimation_error,
+    )
+
+    # Print comparison
+    logger.info("=" * 60)
+    logger.info("COMPARISON RESULTS")
+    logger.info("=" * 60)
+    logger.info(f"Time in Range WITH attack: {tir_with_attack}")
+    logger.info(f"Time in Range WITHOUT attack: {tir_without_attack}")
+    logger.info("=" * 60)

@@ -1,0 +1,5 @@
+virtual_patient_id,sens,dia,carb_ratio,max_bg,min_bg,max_iob,max_basal,isfProfile,error_msg,low,target,high,very_high,low_acceptable,target_acceptable,high_acceptable,very_high_acceptable,acceptable_count,status
+adult_007_param_0_carb_56_trial_0,30.0,5.0,20,117,90,25.0,4,"{'sensitivities': [{'offset': 0, 'sensitivity': np.float64(30.0)}]}",,,95.6551724137931,4.344827586206897,,,,,,0,Completed
+adult_007_param_0_carb_56_trial_2,30.0,5.0,20,117,90,25.0,4,"{'sensitivities': [{'offset': 0, 'sensitivity': np.float64(30.0)}]}",,,97.37931034482759,2.6206896551724137,,,,,,0,Completed
+adult_007_param_0_carb_63_trial_0,30.0,5.0,20,117,90,25.0,4,"{'sensitivities': [{'offset': 0, 'sensitivity': np.float64(30.0)}]}",,,98.82758620689656,1.1724137931034484,,,,,,0,Completed
+adult_007_param_0_carb_56_trial_1,30.0,5.0,20,117,90,25.0,4,"{'sensitivities': [{'offset': 0, 'sensitivity': np.float64(30.0)}]}",,,95.3103448275862,4.689655172413794,,,,,,0,Completed

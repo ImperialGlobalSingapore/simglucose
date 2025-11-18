@@ -2,8 +2,17 @@
 *.pyc
 __pycache__/
 
-# results foler
+# results folder
 /results/
+examples/results/
+
+# oref0_parameter_tuning images (too many files, can be regenerated)
+tests_controller/**/imgs/oref0_parameter_tuning/**/*.png
+
+# Keep important result files in oref0_parameter_tuning
+!tests_controller/**/imgs/oref0_parameter_tuning/**/patient_map.json
+!tests_controller/**/imgs/oref0_parameter_tuning/**/results.csv
+!tests_controller/**/imgs/oref0_parameter_tuning/**/results.json
 
 # Setuptools distribution folder.
 /dist/

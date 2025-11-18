@@ -1,0 +1,110 @@
+[
+  {
+    "virtual_patient_id": "adult_007_param_0_carb_56_trial_0",
+    "error_msg": null,
+    "status": "Completed",
+    "high": 4.344827586206897,
+    "target": 95.6551724137931,
+    "sens": 30.0,
+    "dia": 5.0,
+    "carb_ratio": 20,
+    "max_bg": 117,
+    "min_bg": 90,
+    "max_iob": 25.0,
+    "max_basal": 4,
+    "isfProfile": {
+      "sensitivities": [
+        {
+          "offset": 0,
+          "sensitivity": 30.0
+        }
+      ]
+    },
+    "acceptable_count": 0,
+    "very_high_acceptable": null,
+    "high_acceptable": null,
+    "target_acceptable": null,
+    "low_acceptable": null
+  },
+  {
+    "virtual_patient_id": "adult_007_param_0_carb_56_trial_2",
+    "error_msg": null,
+    "status": "Completed",
+    "high": 2.6206896551724137,
+    "target": 97.37931034482759,
+    "sens": 30.0,
+    "dia": 5.0,
+    "carb_ratio": 20,
+    "max_bg": 117,
+    "min_bg": 90,
+    "max_iob": 25.0,
+    "max_basal": 4,
+    "isfProfile": {
+      "sensitivities": [
+        {
+          "offset": 0,
+          "sensitivity": 30.0
+        }
+      ]
+    },
+    "acceptable_count": 0,
+    "very_high_acceptable": null,
+    "high_acceptable": null,
+    "target_acceptable": null,
+    "low_acceptable": null
+  },
+  {
+    "virtual_patient_id": "adult_007_param_0_carb_63_trial_0",
+    "error_msg": null,
+    "status": "Completed",
+    "high": 1.1724137931034484,
+    "target": 98.82758620689656,
+    "sens": 30.0,
+    "dia": 5.0,
+    "carb_ratio": 20,
+    "max_bg": 117,
+    "min_bg": 90,
+    "max_iob": 25.0,
+    "max_basal": 4,
+    "isfProfile": {
+      "sensitivities": [
+        {
+          "offset": 0,
+          "sensitivity": 30.0
+        }
+      ]
+    },
+    "acceptable_count": 0,
+    "very_high_acceptable": null,
+    "high_acceptable": null,
+    "target_acceptable": null,
+    "low_acceptable": null
+  },
+  {
+    "virtual_patient_id": "adult_007_param_0_carb_56_trial_1",
+    "error_msg": null,
+    "status": "Completed",
+    "high": 4.689655172413794,
+    "target": 95.3103448275862,
+    "sens": 30.0,
+    "dia": 5.0,
+    "carb_ratio": 20,
+    "max_bg": 117,
+    "min_bg": 90,
+    "max_iob": 25.0,
+    "max_basal": 4,
+    "isfProfile": {
+      "sensitivities": [
+        {
+          "offset": 0,
+          "sensitivity": 30.0
+        }
+      ]
+    },
+    "acceptable_count": 0,
+    "very_high_acceptable": null,
+    "high_acceptable": null,
+    "target_acceptable": null,
+    "low_acceptable": null
+  }
+]

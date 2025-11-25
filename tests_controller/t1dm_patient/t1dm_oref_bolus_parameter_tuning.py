@@ -291,8 +291,8 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 # PROFILE SETTINGS (oref0: lib/profile/index.js)
                 "sens": {
                     "step_count": 5,
-                    "range": (50, 100),
-                },  # ISF 1:50 to 1:100 mg/dL (CREATE: GPT recommendation)
+                    "range": (50, 150),
+                },  # ISF 1:50 to 1:150 mg/dL (CREATE: GPT recommendation)
                 "dia": {
                     "step_count": 3,
                     "range": (5, 8),
@@ -308,7 +308,7 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
                 "max_iob": {
                     "step_count": 3,
-                    "range": (15, 20),
+                    "range": (10, 20),
                 },  # Max IOB 15-20u for children (CREATE: Table S2, Page 14, Age <16)
             },
             PatientType.ADULT: {
@@ -331,8 +331,8 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
                 },  # Upper glucose target: 117-180 mg/dL (6.5-10.0 mmol/L)
                 # SAFETY SETTINGS (oref0: lib/profile/index.js:15-19)
                 "max_iob": {
-                    "step_count": 3,
-                    "range": (25, 30),
+                    "step_count": 4,
+                    "range": (10, 30),
                 },  # Max IOB 25-30u for adults (CREATE: Table S2, Page 14, Age >18)
             },
         }
@@ -466,8 +466,9 @@ if __name__ == "__main__":
     """
     # Define patient groups for parameter tuning
     patients_by_group = {
-        # PatientType.CHILD: ["child#002", "child#008", "child#010"],
-        # PatientType.ADULT: ["adolescent#003", "adult#006", "adult#009"],
+        PatientType.CHILD: ["child#002"],
+        # PatientType.CHILD: ["child#008"],
+        # PatientType.ADULT: ["adolescent#003"],
         PatientType.ADULT: ["adult#007"],
     }
 

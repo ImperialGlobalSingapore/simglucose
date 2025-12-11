@@ -12,7 +12,7 @@ from matplotlib import gridspec
 from .time_in_range import TIRCategory, TIRConfig
 
 
-def _plot_bg(ax, t, BG, target_BG=None):
+def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):
     """
     Plot blood glucose data on the given axis.
 
@@ -21,6 +21,7 @@ def _plot_bg(ax, t, BG, target_BG=None):
         t: Time array
         BG: Blood glucose array
         target_BG: Target blood glucose value (optional)
+        show_legend: Whether to show legend on this axis (default False)
     """
     ax.plot(t, BG)
     if target_BG is not None:
@@ -29,6 +30,8 @@ def _plot_bg(ax, t, BG, target_BG=None):
     ax.plot(t, [180] * len(t), "k--", label="Hyperglycemia")
     ax.grid()
     ax.set_ylabel("BG (mg/dL)")
+    if show_legend:
+        ax.legend(loc="best")
 
 
 def _plot_cho(ax, t, CHO):
@@ -60,7 +63,7 @@ def _plot_insulin(ax, t, insulin):
     ax.set_xlabel("Time (min)")
 
 
-def _plot_cho_iob(ax, t, CHO, IOB):
+def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     """
     Plot IOB and CHO data on the given axis with CHO on secondary y-axis.
 
@@ -69,19 +72,27 @@ def _plot_cho_iob(ax, t, CHO, IOB):
         t: Time array
         CHO: Carbohydrate array
         IOB: Insulin on Board array
+        show_legend: Whether to show legend on this axis (default False)
     """
     # Plot IOB on primary y-axis
-    ax.plot(t, IOB, "b-", label="IOB")
-    ax.set_ylabel("IOB (U)", color="b")
-    ax.tick_params(axis="y", labelcolor="b")
+    iob_color = "#1580aa"  # Teal
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", label="IOB")
+    ax.set_ylabel("IOB (U)", color=iob_color)
+    ax.tick_params(axis="y", labelcolor=iob_color)
     ax.grid()
     ax.set_xlabel("Time (min)")
 
     # Plot CHO on secondary y-axis
+    cho_color = "#ea580c"  # Orange
     ax2 = ax.twinx()
-    ax2.plot(t, CHO, "r-", label="CHO")
-    ax2.set_ylabel("CHO (g)", color="r")
-    ax2.tick_params(axis="y", labelcolor="r")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", label="CHO")
+    ax2.set_ylabel("CHO (g)", color=cho_color)
+    ax2.tick_params(axis="y", labelcolor=cho_color)
+
+    if show_legend:
+        lines = line1 + line2
+        labels = [line.get_label() for line in lines]
+        ax.legend(lines, labels, loc="best")
 
 
 def _plot_bg_cho_insulin(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
@@ -120,10 +131,8 @@ def _plot_bg_cho_iob(fig, ax, t, BG, CHO, IOB, target_BG, fig_title):
         target_BG: Target blood glucose value
         fig_title: Title for the figure
     """
-    _plot_bg(ax[0], t, BG, target_BG)
-    _plot_cho_iob(ax[1], t, CHO, IOB)
-    fig.subplots_adjust(bottom=0.05)
-    fig.legend(loc="lower center", ncol=3)
+    _plot_bg(ax[0], t, BG, target_BG, show_legend=True)
+    _plot_cho_iob(ax[1], t, CHO, IOB, show_legend=True)
     fig.suptitle(f"{fig_title}")
     fig.tight_layout()
 
@@ -266,7 +275,7 @@ def _create_bg_cho_insulin_figure_with_tir(
     # Create figure with gridspec layout for TIR scale
     fig = plt.figure(figsize=(15, 10))
     gs = gridspec.GridSpec(
-        3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.05
+        3, 2, width_ratios=[15, 1], height_ratios=[1, 1, 1], wspace=0.1
     )
     ax0 = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
@@ -326,9 +335,7 @@ def _create_bg_cho_iob_figure_with_tir(
     """
     # Create figure with gridspec layout for TIR scale
     fig = plt.figure(figsize=(15, 8))
-    gs = gridspec.GridSpec(
-        2, 2, width_ratios=[15, 1], height_ratios=[1, 1], wspace=0.05
-    )
+    gs = gridspec.GridSpec(2, 2, width_ratios=[15, 1], height_ratios=[1, 1], wspace=0.1)
     ax0 = fig.add_subplot(gs[0, 0])
     ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
     scale_ax = fig.add_subplot(gs[:, 1])
@@ -392,7 +399,7 @@ def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
     """
     fig_title = Path(file_name).stem
     fig = _create_bg_cho_insulin_figure(t, BG, CHO, insulin, target_BG, fig_title)
-    fig.savefig(f"{file_name}")
+    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
 
 
@@ -414,7 +421,7 @@ def plot_and_save_with_tir(t, BG, CHO, insulin, target_BG, file_name, time_in_ra
     fig = _create_bg_cho_insulin_figure_with_tir(
         t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config
     )
-    fig.savefig(f"{file_name}")
+    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
 
 
@@ -467,7 +474,7 @@ def plot_bg_cho_iob_and_save(t, BG, CHO, IOB, target_BG, file_name):
     """
     fig_title = Path(file_name).stem
     fig = _create_bg_cho_iob_figure(t, BG, CHO, IOB, target_BG, fig_title)
-    fig.savefig(f"{file_name}")
+    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)
 
 
@@ -490,5 +497,5 @@ def plot_bg_cho_iob_and_save_with_tir(
     fig = _create_bg_cho_iob_figure_with_tir(
         t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
     )
-    fig.savefig(f"{file_name}")
+    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)

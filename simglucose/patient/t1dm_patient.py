@@ -139,7 +139,7 @@ class T1DMPatient(Patient):
         observation = Observation(Gsub=Gsub)
         return observation
 
-    def get_iob(self, include_plasma=False, subtract_baseline=False):
+    def get_iob(self, include_plasma=True, subtract_baseline=False):
         """
         Calculate Insulin on Board (IOB) from patient model state variables.
 

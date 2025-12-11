@@ -31,7 +31,7 @@ def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):
     ax.grid()
     ax.set_ylabel("BG (mg/dL)")
     if show_legend:
-        ax.legend(loc="best")
+        ax.legend(loc="upper right")
 
 
 def _plot_cho(ax, t, CHO):
@@ -92,7 +92,7 @@ def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     if show_legend:
         lines = line1 + line2
         labels = [line.get_label() for line in lines]
-        ax.legend(lines, labels, loc="best")
+        ax.legend(lines, labels, loc="upper right")
 
 
 def _plot_bg_cho_insulin(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):

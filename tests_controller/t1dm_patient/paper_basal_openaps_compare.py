@@ -336,7 +336,6 @@ def run_patient_with_oref0_bolus(
                 f"CHO: {carb}g, Insulin: {ins:.3f} U/min"
             )
 
-    # Calculate time in range statistics
     tir_config = TIRConfig()  # Defaults to BASIC standard
     time_in_range = tir_config.calculate_time_in_range(BG)
 
@@ -344,7 +343,6 @@ def run_patient_with_oref0_bolus(
     for category, percentage in time_in_range.items():
         logger.info(f"{category.value}: {percentage:.1f}%")
 
-    # Display plot if requested
     file_name = (
         image_save_dir
         / f"t1dm_{patient_name}_oref0_bolus_{meal_amount}g_at_{meal_time}min.png"
@@ -387,7 +385,6 @@ if __name__ == "__main__":
         simulation_time=simulation_time,
     )
 
-    exit()
     # =========================================================================
     # Example 2: Run with ORef0 + Meal Bolus Controller
     # =========================================================================
@@ -395,19 +392,14 @@ if __name__ == "__main__":
     print("Example 2: Adult patient with ORef0 + Meal Bolus Controller")
     print("=" * 60)
 
-    # Custom ORef0 profile (refer to paper https://www.nejm.org/doi/full/10.1056/NEJMoa2203913)
+    # "adult_007_param_429_carb_56_trial_0" ? why max_iob 12? nvm
     custom_profile = {
-        "sens": 45,
-        "dia": 7.0,
-        "carb_ratio": 10,  # changed later from patient
-        "max_iob": 12,  # from paper, max 30
-        "max_basal": 4,  # from paper, max 10
-        "max_daily_basal": 0.9,  # from paper
-        "max_bg": 140,
-        "min_bg": 90,
-        "maxCOB": 120,  # from oref0 code
-        "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
-        "min_5m_carbimpact": 8,  # from paper and oref0 code
+        "sens": 50,
+        "dia": 8.0,
+        "max_iob": 12,
+        "max_basal": 4,
+        "max_bg": 180,
+        "min_bg": 70,
     }
 
     run_patient_with_oref0_bolus(

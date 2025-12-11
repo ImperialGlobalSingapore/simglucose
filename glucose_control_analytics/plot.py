@@ -12,7 +12,79 @@ from matplotlib import gridspec
 from .time_in_range import TIRCategory, TIRConfig
 
 
-def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
+def _plot_bg(ax, t, BG, target_BG=None):
+    """
+    Plot blood glucose data on the given axis.
+
+    Args:
+        ax: Matplotlib axis
+        t: Time array
+        BG: Blood glucose array
+        target_BG: Target blood glucose value (optional)
+    """
+    ax.plot(t, BG)
+    if target_BG is not None:
+        ax.plot(t, [target_BG] * len(t), "r--", label="Target BG")
+    ax.plot(t, [70] * len(t), "b--", label="Hypoglycemia")
+    ax.plot(t, [180] * len(t), "k--", label="Hyperglycemia")
+    ax.grid()
+    ax.set_ylabel("BG (mg/dL)")
+
+
+def _plot_cho(ax, t, CHO):
+    """
+    Plot carbohydrate intake data on the given axis.
+
+    Args:
+        ax: Matplotlib axis
+        t: Time array
+        CHO: Carbohydrate array
+    """
+    ax.plot(t, CHO)
+    ax.grid()
+    ax.set_ylabel("CHO (g)")
+
+
+def _plot_insulin(ax, t, insulin):
+    """
+    Plot insulin delivery data on the given axis.
+
+    Args:
+        ax: Matplotlib axis
+        t: Time array
+        insulin: Insulin array
+    """
+    ax.plot(t, insulin)
+    ax.grid()
+    ax.set_ylabel("Insulin (U/min)")
+    ax.set_xlabel("Time (min)")
+
+
+def _plot_cho_iob(ax, t, CHO, IOB):
+    """
+    Plot IOB and CHO data on the given axis with CHO on secondary y-axis.
+
+    Args:
+        ax: Matplotlib axis (primary, for IOB)
+        t: Time array
+        CHO: Carbohydrate array
+        IOB: Insulin on Board array
+    """
+    # Plot IOB on primary y-axis
+    ax.plot(t, IOB, "b-", label="IOB")
+    ax.set_ylabel("IOB (U)", color="b")
+    ax.tick_params(axis="y", labelcolor="b")
+    ax.grid()
+    ax.set_xlabel("Time (min)")
+
+    # Plot CHO on secondary y-axis
+    ax2 = ax.twinx()
+    ax2.plot(t, CHO, "r-", label="CHO")
+    ax2.set_ylabel("CHO (g)", color="r")
+    ax2.tick_params(axis="y", labelcolor="r")
+
+
+def _plot_bg_cho_insulin(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
     """
     Internal function to create the main BG/CHO/insulin plots.
 
@@ -26,20 +98,31 @@ def _plot(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
         target_BG: Target blood glucose value
         fig_title: Title for the figure
     """
-    ax[0].plot(t, BG)
-    ax[0].plot(t, [target_BG] * len(t), "r--", label="Target BG")
-    ax[0].plot(t, [70] * len(t), "b--", label="Hypoglycemia")
-    ax[0].plot(t, [180] * len(t), "k--", label="Hyperglycemia")
-    ax[0].grid()
-    ax[0].set_ylabel("BG (mg/dL)")
-    ax[1].plot(t, CHO)
-    ax[1].grid()
-    ax[1].set_ylabel("CHO (g)")
-    ax[2].plot(t, insulin)
-    ax[2].grid()
-    ax[2].set_ylabel("Insulin (U/min)")
-    ax[2].set_xlabel("Time (min)")
-    fig.subplots_adjust(bottom=0.15)
+    _plot_bg(ax[0], t, BG, target_BG)
+    _plot_cho(ax[1], t, CHO)
+    _plot_insulin(ax[2], t, insulin)
+    fig.subplots_adjust(bottom=0.05)
+    fig.legend(loc="lower center", ncol=3)
+    fig.suptitle(f"{fig_title}")
+    fig.tight_layout()
+
+
+def _plot_bg_cho_iob(fig, ax, t, BG, CHO, IOB, target_BG, fig_title):
+    """
+    Internal function to create BG and IOB plots.
+
+    Args:
+        fig: Matplotlib figure
+        ax: List of 2 matplotlib axes
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+    """
+    _plot_bg(ax[0], t, BG, target_BG)
+    _plot_cho_iob(ax[1], t, CHO, IOB)
+    fig.subplots_adjust(bottom=0.05)
     fig.legend(loc="lower center", ncol=3)
     fig.suptitle(f"{fig_title}")
     fig.tight_layout()
@@ -135,7 +218,7 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
     scale_ax.set_title("Time in Range", fontsize=12)
 
 
-def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title):
+def _create_bg_cho_insulin_figure(t, BG, CHO, insulin, target_BG, fig_title):
     """
     Create a basic plot figure without time in range scale.
 
@@ -156,12 +239,14 @@ def _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title):
     ax2 = fig.add_subplot(3, 1, 3, sharex=ax0)
 
     axes = [ax0, ax1, ax2]
-    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+    _plot_bg_cho_insulin(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
 
     return fig
 
 
-def _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config):
+def _create_bg_cho_insulin_figure_with_tir(
+    t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config
+):
     """
     Create a plot figure with time in range scale.
 
@@ -189,7 +274,67 @@ def _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time
     scale_ax = fig.add_subplot(gs[:, 1])
 
     axes = [ax0, ax1, ax2]
-    _plot(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+    _plot_bg_cho_insulin(fig, axes, t, BG, CHO, insulin, target_BG, fig_title)
+
+    # Add time in range scale bar
+    _plot_time_in_range_scale(scale_ax, time_in_range, tir_config)
+
+    return fig
+
+
+def _create_bg_cho_iob_figure(t, BG, CHO, IOB, target_BG, fig_title):
+    """
+    Create a basic BG/IOB plot figure without time in range scale.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+
+    Returns:
+        matplotlib.figure.Figure: The created figure
+    """
+    fig = plt.figure(figsize=(12, 8))
+    ax0 = fig.add_subplot(2, 1, 1)
+    ax1 = fig.add_subplot(2, 1, 2, sharex=ax0)
+
+    axes = [ax0, ax1]
+    _plot_bg_cho_iob(fig, axes, t, BG, CHO, IOB, target_BG, fig_title)
+
+    return fig
+
+
+def _create_bg_cho_iob_figure_with_tir(
+    t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
+):
+    """
+    Create a BG/IOB plot figure with time in range scale.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+
+    Returns:
+        matplotlib.figure.Figure: The created figure
+    """
+    # Create figure with gridspec layout for TIR scale
+    fig = plt.figure(figsize=(15, 8))
+    gs = gridspec.GridSpec(
+        2, 2, width_ratios=[15, 1], height_ratios=[1, 1], wspace=0.05
+    )
+    ax0 = fig.add_subplot(gs[0, 0])
+    ax1 = fig.add_subplot(gs[1, 0], sharex=ax0)
+    scale_ax = fig.add_subplot(gs[:, 1])
+
+    axes = [ax0, ax1]
+    _plot_bg_cho_iob(fig, axes, t, BG, CHO, IOB, target_BG, fig_title)
 
     # Add time in range scale bar
     _plot_time_in_range_scale(scale_ax, time_in_range, tir_config)
@@ -209,7 +354,7 @@ def plot_and_show(t, BG, CHO, insulin, target_BG, fig_title):
         target_BG: Target blood glucose value
         fig_title: Title for the figure
     """
-    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title)
+    _create_bg_cho_insulin_figure(t, BG, CHO, insulin, target_BG, fig_title)
     plt.show()
 
 
@@ -227,7 +372,9 @@ def plot_and_show_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_ra
         time_in_range: Dict with time in range statistics
         tir_config: TIRConfig instance
     """
-    fig = _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config)
+    _create_bg_cho_insulin_figure_with_tir(
+        t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config
+    )
     plt.show()
 
 
@@ -244,7 +391,7 @@ def plot_and_save(t, BG, CHO, insulin, target_BG, file_name):
         file_name: Path to save the figure
     """
     fig_title = Path(file_name).stem
-    fig = _create_plot_figure(t, BG, CHO, insulin, target_BG, fig_title)
+    fig = _create_bg_cho_insulin_figure(t, BG, CHO, insulin, target_BG, fig_title)
     fig.savefig(f"{file_name}")
     plt.close(fig)
 
@@ -264,6 +411,84 @@ def plot_and_save_with_tir(t, BG, CHO, insulin, target_BG, file_name, time_in_ra
         tir_config: TIRConfig instance
     """
     fig_title = Path(file_name).stem
-    fig = _create_plot_figure_with_tir(t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config)
+    fig = _create_bg_cho_insulin_figure_with_tir(
+        t, BG, CHO, insulin, target_BG, fig_title, time_in_range, tir_config
+    )
+    fig.savefig(f"{file_name}")
+    plt.close(fig)
+
+
+def plot_bg_cho_iob_and_show(t, BG, CHO, IOB, target_BG, fig_title):
+    """
+    Display BG/IOB plot without time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+    """
+    _create_bg_cho_iob_figure(t, BG, CHO, IOB, target_BG, fig_title)
+    plt.show()
+
+
+def plot_bg_cho_iob_and_show_with_tir(
+    t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
+):
+    """
+    Display BG/IOB plot with time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        fig_title: Title for the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+    """
+    fig = _create_bg_cho_iob_figure_with_tir(
+        t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
+    )
+    plt.show()
+
+
+def plot_bg_cho_iob_and_save(t, BG, CHO, IOB, target_BG, file_name):
+    """
+    Save BG/IOB plot to file without time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        file_name: Path to save the figure
+    """
+    fig_title = Path(file_name).stem
+    fig = _create_bg_cho_iob_figure(t, BG, CHO, IOB, target_BG, fig_title)
+    fig.savefig(f"{file_name}")
+    plt.close(fig)
+
+
+def plot_bg_cho_iob_and_save_with_tir(
+    t, BG, CHO, IOB, target_BG, file_name, time_in_range, tir_config
+):
+    """
+    Save BG/IOB plot to file with time in range scale bar.
+
+    Args:
+        t: Time array
+        BG: Blood glucose array
+        iob: Insulin on Board array
+        target_BG: Target blood glucose value
+        file_name: Path to save the figure
+        time_in_range: Dict with time in range statistics
+        tir_config: TIRConfig instance
+    """
+    fig_title = Path(file_name).stem
+    fig = _create_bg_cho_iob_figure_with_tir(
+        t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
+    )
     fig.savefig(f"{file_name}")
     plt.close(fig)

@@ -17,9 +17,9 @@ class MealAnnouncementBolusController:
     def __init__(
         self,
         meal_schedule=None,
-        carb_factor=10,
-        release_time_before_meal=10,  # minutes before meal to release bolus
-        carb_estimation_error=0.3,  # +/- percentage of carb estimation error
+        carb_factor: float = 10,
+        release_time_before_meal: int = 10,  # minutes before meal to release bolus
+        carb_estimation_error: float = 0.3,  # +/- percentage of carb estimation error
         t_start=None,  # patient start time (datetime)
     ):
         """

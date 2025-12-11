@@ -154,6 +154,7 @@ def run_patient_with_basal_bolus(
     BG = []
     IOB = []
     CHO = []
+    INS = []
 
     # Run simulation
     logger.info(f"Starting simulation for {simulation_time} minutes")
@@ -188,6 +189,7 @@ def run_patient_with_basal_bolus(
         BG.append(p.observation.Gsub)
         CHO.append(carb)
         IOB.append(p.get_iob())
+        INS.append(ins)
 
         # Step the patient simulation
         p.step(act)
@@ -219,8 +221,8 @@ def run_patient_with_basal_bolus(
     )
     with open(csv_file, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["time", "BG", "IOB", "CHO"])
-        for row in zip(t, BG, IOB, CHO):
+        writer.writerow(["time", "BG", "IOB", "CHO", "INS"])
+        for row in zip(t, BG, IOB, CHO, INS):
             writer.writerow(row)
         writer.writerow([])
         writer.writerow(["target", target])
@@ -305,6 +307,7 @@ def run_patient_with_oref0_bolus(
     BG = []
     IOB = []
     CHO = []
+    INS = []
 
     # Run simulation
     logger.info(f"Starting simulation for {simulation_time} minutes")
@@ -338,6 +341,7 @@ def run_patient_with_oref0_bolus(
         BG.append(p.observation.Gsub)
         IOB.append(p.get_iob())
         CHO.append(carb)
+        INS.append(ins)
 
         # Step the patient simulation
         p.step(act)
@@ -368,8 +372,8 @@ def run_patient_with_oref0_bolus(
     )
     with open(csv_file, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["time", "BG", "IOB", "CHO"])
-        for row in zip(t, BG, IOB, CHO):
+        writer.writerow(["time", "BG", "IOB", "CHO", "INS"])
+        for row in zip(t, BG, IOB, CHO, INS):
             writer.writerow(row)
         writer.writerow([])
         writer.writerow(["target", combined_ctrl.target_bg])

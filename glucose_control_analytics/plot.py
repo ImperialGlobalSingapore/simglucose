@@ -109,11 +109,9 @@ def _plot_bg_cho_insulin(fig, ax, t, BG, CHO, insulin, target_BG, fig_title):
         target_BG: Target blood glucose value
         fig_title: Title for the figure
     """
-    _plot_bg(ax[0], t, BG, target_BG)
+    _plot_bg(ax[0], t, BG, target_BG, show_legend=True)
     _plot_cho(ax[1], t, CHO)
     _plot_insulin(ax[2], t, insulin)
-    fig.subplots_adjust(bottom=0.05)
-    fig.legend(loc="lower center", ncol=3)
     fig.suptitle(f"{fig_title}")
     fig.tight_layout()
 

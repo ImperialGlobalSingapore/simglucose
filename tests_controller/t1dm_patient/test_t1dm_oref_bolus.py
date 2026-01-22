@@ -13,7 +13,7 @@ from simglucose.controller.oref_zero_with_meal_bolus import (
     ORefZeroWithMealBolus,
     CtrlObservation,
 )
-from glucose_control_analytics import TIRConfig, plot_and_show_with_tir
+from glucose_control_analytics import TIRConfig, plot_bg_cho_iob_and_show_with_tir
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -81,7 +81,7 @@ def run_patient_with_oref0_bolus(
     # Storage for simulation data
     t = []
     CHO = []
-    insulin = []
+    IOB = []
     BG = []
 
     # Run simulation
@@ -114,7 +114,7 @@ def run_patient_with_oref0_bolus(
         # Record data
         t.append(p.t_elapsed)
         CHO.append(act.CHO)
-        insulin.append(act.insulin)
+        IOB.append(p.get_iob())
         BG.append(p.observation.Gsub)
 
         # Step the patient simulation
@@ -137,11 +137,11 @@ def run_patient_with_oref0_bolus(
 
     # Display plot if requested
     if show_plot:
-        plot_and_show_with_tir(
+        plot_bg_cho_iob_and_show_with_tir(
             t,
             BG,
             CHO,
-            insulin,
+            IOB,
             combined_ctrl.target_bg,
             f"T1DM Patient {patient_name} with ORef0 + Meal Bolus - {meal_amount}g at {meal_time}min",
             time_in_range,
@@ -158,27 +158,37 @@ if __name__ == "__main__":
     print("Example: Adult patient with custom ORef0 profile")
     print("=" * 60)
 
+    # adult#007
+    patient_name = "adult#007"
     custom_profile = {
-        "sens": 45,
-        "dia": 7.0,
-        "carb_ratio": 10,  # changed later from patient
-        "max_iob": 12,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+        "sens": 50,
+        "dia": 8.0,
+        "carb_ratio": 20,  # changed later from patient
+        "max_iob": 27.5,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
         "max_basal": 4,  # from paper, max 10
-        "max_daily_basal": 0.9,  # from paper
-        "max_bg": 140,
-        "min_bg": 90,
-        "maxCOB": 120,  # from oref0 code
-        "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 45}]},
-        "min_5m_carbimpact": 8,  # from paper and oref0 code
+        "max_bg": 180,
+        "min_bg": 70,
     }
 
+    # child#002
+    # patient_name = "child#002"
+    # custom_profile = {
+    #     "sens": 50,
+    #     "dia": 8.0,
+    #     "carb_ratio": 30,  # changed later from patient
+    #     "max_iob": 15,  # from paper, max 30, from https://androidaps.readthedocs.io/en/latest/DailyLifeWithAaps/KeyAapsFeatures.html
+    #     "max_basal": 4,  # from paper, max 10
+    #     "max_bg": 180,
+    #     "min_bg": 90,
+    # }
+
     run_patient_with_oref0_bolus(
-        patient_name="adult#007",
+        patient_name=patient_name,
         profile=custom_profile,
         show_plot=True,
         meal_time=20,  # Meal at 6 hours
         meal_amount=75,  # 50g carbs
         release_time_before_meal=10,
-        carb_estimation_error=0.3,  # 30% carb estimation error
+        carb_estimation_error=0,  # 30% carb estimation error
         simulation_time=720,  # 12 hours
     )

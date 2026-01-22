@@ -8,7 +8,6 @@ from simglucose.controller.oref_zero_with_meal_bolus import (
     CtrlObservation,
 )
 from simglucose.controller.base import Controller, Action as CtrlAction
-from glucose_control_analytics import TIRConfig, plot_bg_cho_iob_and_save_with_tir
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -17,10 +16,8 @@ logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.INFO)
 file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
 
-img_dir = parent_folder / "imgs"
-test_patient_dir = img_dir / "paper" / "basal_openaps_compare"
-image_save_dir = test_patient_dir
-image_save_dir.mkdir(parents=True, exist_ok=True)
+data_dir = parent_folder / "data"
+data_dir.mkdir(parents=True, exist_ok=True)
 
 
 class T1DMBBController(Controller):
@@ -118,7 +115,6 @@ class T1DMBBController(Controller):
 
 def run_patient_with_basal_bolus(
     patient_name="adult#001",
-    save_plot=True,
     meal_time=360,  # Single meal at 6 hours (360 minutes)
     meal_amount=50,  # 50g carbs
     target=140,  # Target blood glucose (mg/dL)
@@ -129,14 +125,13 @@ def run_patient_with_basal_bolus(
 
     Args:
         patient_name: Name of the patient (e.g., "adult#001", "child#001")
-        show_plot: Whether to display the results plot
         meal_time: Time in minutes when meal is delivered
         meal_amount: Amount of carbs in grams
         target: Target blood glucose level (mg/dL)
         simulation_time: Total simulation time in minutes
 
     Returns:
-        dict: Time in range statistics
+        Path: Path to the saved CSV file
     """
     # Initialize patient
     p = T1DMPatient.withName(patient_name)
@@ -201,22 +196,9 @@ def run_patient_with_basal_bolus(
                 f"CHO: {carb}g, Insulin: {ins:.3f} U/min"
             )
 
-    # Calculate time in range statistics
-    tir_config = TIRConfig()  # Defaults to BASIC standard
-    time_in_range = tir_config.calculate_time_in_range(BG)
-
-    logger.info("\n=== Time in Range Results ===")
-    for category, percentage in time_in_range.items():
-        logger.info(f"{category.value}: {percentage:.1f}%")
-
-    file_name = (
-        image_save_dir
-        / f"t1dm_{patient_name}_basal_bolus_{meal_amount}g_at_{meal_time}min.png"
-    )
-
     # Write data to CSV
     csv_file = (
-        image_save_dir
+        data_dir
         / f"t1dm_{patient_name}_basal_bolus_{meal_amount}g_at_{meal_time}min.csv"
     )
     with open(csv_file, "w", newline="") as f:
@@ -226,28 +208,14 @@ def run_patient_with_basal_bolus(
             writer.writerow(row)
         writer.writerow([])
         writer.writerow(["target", target])
-        for category, percentage in time_in_range.items():
-            writer.writerow([category.value, f"{percentage:.1f}%"])
     logger.info(f"Data saved to {csv_file}")
 
-    # Display plot if requested
-    if save_plot:
-        plot_bg_cho_iob_and_save_with_tir(
-            t,
-            BG,
-            CHO,
-            IOB,
-            target,
-            file_name,
-            time_in_range,
-            tir_config,
-        )
+    return csv_file
 
 
 def run_patient_with_oref0_bolus(
     patient_name="adult#001",
     profile=None,
-    save_plot=True,
     meal_time=360,  # Single meal at 6 hours (360 minutes)
     meal_amount=50,  # 50g carbs
     release_time_before_meal=10,  # minutes before meal to release bolus
@@ -260,7 +228,6 @@ def run_patient_with_oref0_bolus(
     Args:
         patient_name: Name of the patient (e.g., "adult#001", "child#001")
         profile: Optional ORef0 profile dict with parameters like sens, dia, carb_ratio, etc.
-        show_plot: Whether to display the results plot
         meal_time: Time in minutes when meal is delivered
         meal_amount: Amount of carbs in grams
         release_time_before_meal: Minutes before meal to release bolus
@@ -268,7 +235,7 @@ def run_patient_with_oref0_bolus(
         simulation_time: Total simulation time in minutes
 
     Returns:
-        dict: Time in range statistics
+        tuple: (csv_file_path, target_bg)
     """
     # Initialize patient
     p = T1DMPatient.withName(patient_name)
@@ -353,21 +320,9 @@ def run_patient_with_oref0_bolus(
                 f"CHO: {carb}g, Insulin: {ins:.3f} U/min"
             )
 
-    tir_config = TIRConfig()  # Defaults to BASIC standard
-    time_in_range = tir_config.calculate_time_in_range(BG)
-
-    logger.info("\n=== Time in Range Results ===")
-    for category, percentage in time_in_range.items():
-        logger.info(f"{category.value}: {percentage:.1f}%")
-
-    file_name = (
-        image_save_dir
-        / f"t1dm_{patient_name}_oref0_bolus_{meal_amount}g_at_{meal_time}min.png"
-    )
-
     # Write data to CSV
     csv_file = (
-        image_save_dir
+        data_dir
         / f"t1dm_{patient_name}_oref0_bolus_{meal_amount}g_at_{meal_time}min.csv"
     )
     with open(csv_file, "w", newline="") as f:
@@ -377,23 +332,9 @@ def run_patient_with_oref0_bolus(
             writer.writerow(row)
         writer.writerow([])
         writer.writerow(["target", combined_ctrl.target_bg])
-        for category, percentage in time_in_range.items():
-            writer.writerow([category.value, f"{percentage:.1f}%"])
     logger.info(f"Data saved to {csv_file}")
 
-    if save_plot:
-        plot_bg_cho_iob_and_save_with_tir(
-            t,
-            BG,
-            CHO,
-            IOB,
-            combined_ctrl.target_bg,
-            file_name,
-            time_in_range,
-            tir_config,
-        )
-
-    return combined_ctrl.target_bg
+    return csv_file, combined_ctrl.target_bg
 
 
 if __name__ == "__main__":
@@ -407,7 +348,6 @@ if __name__ == "__main__":
     print("Example 1: Adult patient with ORef0 + Meal Bolus Controller")
     print("=" * 60)
 
-    # "adult_007_param_429_carb_56_trial_0" ? why max_iob 12? nvm
     custom_profile = {
         "sens": 50,
         "dia": 8.0,
@@ -417,26 +357,26 @@ if __name__ == "__main__":
         "min_bg": 70,
     }
 
-    target_bg = run_patient_with_oref0_bolus(
+    oref0_csv, target_bg = run_patient_with_oref0_bolus(
         patient_name=patient_name,
         profile=custom_profile,
-        save_plot=True,
         meal_time=meal_time,
         meal_amount=meal_amount,
         release_time_before_meal=10,
-        carb_estimation_error=0,  # 30% carb estimation error
+        carb_estimation_error=0,
         simulation_time=simulation_time,
     )
+    print(f"ORef0 data saved to: {oref0_csv}")
 
     print("\n" + "=" * 60)
     print("Example 2: Adult patient with Basal-Bolus Controller")
     print("=" * 60)
 
-    run_patient_with_basal_bolus(
+    bb_csv = run_patient_with_basal_bolus(
         patient_name=patient_name,
-        save_plot=True,
         meal_time=meal_time,
         meal_amount=meal_amount,
         target=target_bg,
         simulation_time=simulation_time,
     )
+    print(f"Basal-Bolus data saved to: {bb_csv}")

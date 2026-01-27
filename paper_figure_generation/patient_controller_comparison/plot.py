@@ -14,6 +14,11 @@ import matplotlib as mpl
 # Set Calibri font globally
 mpl.rcParams["font.family"] = "Calibri"
 mpl.rcParams["font.size"] = 14
+mpl.rcParams["font.weight"] = "bold"
+mpl.rcParams["axes.linewidth"] = 2
+mpl.rcParams["xtick.major.width"] = 2
+mpl.rcParams["ytick.major.width"] = 2
+mpl.rcParams["axes.labelweight"] = "bold"
 
 
 class PatientType(Enum):
@@ -277,22 +282,21 @@ def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):
     Args:
         ax: Matplotlib axis
         t: Time array
-        BG: Blood glucose array
+        BG: Blood glucose array (in mg/dL, will be converted to mmol/L)
         target_BG: Target blood glucose value (optional, not used)
         show_legend: Whether to show legend on this axis (default False)
     """
-    ax.plot(t, BG, color="black", label="Glucose")
-    ax.plot(t, [70] * len(t), color="black", linestyle=":", label="Hypoglycemia (70)")
-    ax.plot(
-        t, [180] * len(t), color="black", linestyle="--", label="Hyperglycemia (180)"
-    )
+    # Convert mg/dL to mmol/L (divide by 18)
+    BG_mmol = [bg / 18.0 for bg in BG]
 
-    # Set axis limits
+    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Glucose")
+
+    # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
-    ax.set_ylim(70, 250)
-    ax.set_yticks([70, 100, 150, 200, 250])
+    ax.set_ylim(3.9, 13.9)
+    ax.set_yticks([3.9, 6, 8, 10, 12, 13.9])
 
-    _style_axis(ax, ylabel="Glucose (mg/dL)")
+    _style_axis(ax, ylabel="Glucose (mmol/L)")
 
 
 def _plot_cho(ax, t, CHO):
@@ -337,7 +341,7 @@ def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     """
     # Plot IOB on primary y-axis
     iob_color = "#2596BE"
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
     ax.set_ylabel("IOB (U)", color=iob_color)
     ax.tick_params(axis="y", labelcolor=iob_color)
 
@@ -347,9 +351,9 @@ def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     ax.set_xlim(0, max(t))
 
     # Plot CHO on secondary y-axis
-    cho_color = "#FF0000"
+    cho_color = "#E96929"
     ax2 = ax.twinx()
-    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", label="CHO")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
 
@@ -493,15 +497,16 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
         if category in time_in_range:
             percentage = time_in_range[category]  # Already in percentage (0-100)
             if percentage > 0:
-                # Add threshold label at the bottom of this section
+                # Add threshold label at the bottom of this section (convert mg/dL to mmol/L)
                 if category != TIRCategory.VERY_LOW:  # Don't show 0 at the bottom
+                    threshold_mmol = thresholds[category] / 18.0
                     scale_ax.text(
                         x_position - bar_width / 2 - 0.1,
                         cumulative_height,
-                        f"{thresholds[category]}",
+                        f"{threshold_mmol:.1f}",
                         ha="right",
                         va="center",
-                        fontsize=10,
+                        fontsize=12,
                         color="black",
                     )
                 cumulative_height += percentage
@@ -511,13 +516,14 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
                 if next_key_index < len(order):
                     next_category = order[next_key_index]
                     # Always show the threshold, regardless of whether next section exists
+                    threshold_mmol = thresholds[next_category] / 18.0
                     scale_ax.text(
                         x_position - bar_width / 2 - 0.1,
                         cumulative_height,
-                        f"{thresholds[next_category]}",
+                        f"{threshold_mmol:.1f}",
                         ha="right",
                         va="center",
-                        fontsize=10,
+                        fontsize=12,
                         color="black",
                     )
 
@@ -837,6 +843,178 @@ def plot_bg_cho_iob_and_save_with_tir(
     fig_title = Path(file_name).stem
     fig = _create_bg_cho_iob_figure_with_tir(
         t, BG, CHO, IOB, target_BG, fig_title, time_in_range, tir_config
+    )
+    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
+    plt.close(fig)
+
+
+def _plot_bg_no_legend(ax, t, BG):
+    """Plot blood glucose without legend."""
+    BG_mmol = [bg / 18.0 for bg in BG]
+    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Glucose")
+    ax.set_xlim(0, max(t))
+    ax.set_ylim(3.9, 13.9)
+    ax.set_yticks([3.9, 6, 8, 10, 12, 13.9])
+    _style_axis(ax, ylabel="Glucose (mmol/L)")
+
+
+def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
+    """Plot IOB and CHO without legend, return lines for shared legend."""
+    iob_color = "#2596BE"
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    ax.set_ylabel("IOB (U)", color=iob_color)
+    ax.tick_params(axis="y", labelcolor=iob_color)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.set_xlim(0, max(t))
+
+    cho_color = "#E96929"
+    ax2 = ax.twinx()
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    ax2.set_ylabel("CHO (g)", color=cho_color)
+    ax2.tick_params(axis="y", labelcolor=cho_color)
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+
+    return line1 + line2
+
+
+def _create_comparison_figure_with_tir(
+    data_left, data_right, tir_config, title_left="", title_right=""
+):
+    """
+    Create a side-by-side comparison figure with shared legend in the middle.
+
+    Args:
+        data_left: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
+        data_right: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
+        tir_config: TIRConfig instance
+        title_left: Title for left plot
+        title_right: Title for right plot
+
+    Returns:
+        matplotlib.figure.Figure: The created figure
+    """
+    plot_height = 5
+    plot_width = plot_height * 1.2
+    iob_height = plot_height * 0.5
+    tir_width = 0.7
+    legend_height = 0.25
+
+    # Layout rows: [BG plots, BG legend, IOB plots, IOB legend]
+    # Layout cols: [left_plot, left_tir, gap, right_plot, right_tir]
+    fig_height = plot_height + iob_height + legend_height * 2
+    gap_width = 0.8
+    total_width = plot_width * 2 + tir_width * 2 + gap_width + 2
+
+    fig = plt.figure(figsize=(total_width, fig_height))
+    gs = gridspec.GridSpec(
+        4,
+        5,
+        width_ratios=[plot_width, tir_width, gap_width, plot_width, tir_width],
+        height_ratios=[1, legend_height, 0.5, legend_height],
+        wspace=0.15,
+        hspace=0.05,
+    )
+
+    # Left plot axes
+    ax_bg_left = fig.add_subplot(gs[0, 0])
+    ax_iob_left = fig.add_subplot(gs[2, 0], sharex=ax_bg_left)
+    ax_tir_left = fig.add_subplot(gs[0, 1])
+
+    # Right plot axes (col 2 is the gap)
+    ax_bg_right = fig.add_subplot(gs[0, 3])
+    ax_iob_right = fig.add_subplot(gs[2, 3], sharex=ax_bg_right)
+    ax_tir_right = fig.add_subplot(gs[0, 4])
+
+    # Legend axes (spanning middle columns)
+    ax_legend_bg = fig.add_subplot(gs[1, :])
+    ax_legend_bg.axis("off")
+    ax_legend_iob = fig.add_subplot(gs[3, :])
+    ax_legend_iob.axis("off")
+
+    # Plot left data
+    _plot_bg_no_legend(ax_bg_left, data_left["t"], data_left["BG"])
+    lines_left = _plot_cho_iob_no_legend(
+        ax_iob_left, data_left["t"], data_left["CHO"], data_left["IOB"]
+    )
+    _plot_time_in_range_scale(ax_tir_left, data_left["time_in_range"], tir_config)
+
+    # Plot right data
+    _plot_bg_no_legend(ax_bg_right, data_right["t"], data_right["BG"])
+    lines_right = _plot_cho_iob_no_legend(
+        ax_iob_right, data_right["t"], data_right["CHO"], data_right["IOB"]
+    )
+    _plot_time_in_range_scale(ax_tir_right, data_right["time_in_range"], tir_config)
+
+    # Add x labels
+    ax_iob_left.set_xlabel("Time (min)")
+    ax_iob_right.set_xlabel("Time (min)")
+
+    # Add subplot labels (a) and (b)
+    ax_bg_left.text(
+        -0.15,
+        1.05,
+        "a",
+        transform=ax_bg_left.transAxes,
+        fontsize=20,
+        fontweight="bold",
+        va="bottom",
+        ha="left",
+    )
+    ax_bg_right.text(
+        -0.15,
+        1.05,
+        "b",
+        transform=ax_bg_right.transAxes,
+        fontsize=20,
+        fontweight="bold",
+        va="bottom",
+        ha="left",
+    )
+
+    # Glucose legend below glucose plots
+    bg_handle = ax_bg_left.get_legend_handles_labels()[0]
+    ax_legend_bg.legend(
+        bg_handle,
+        ["Glucose"],
+        loc="center",
+        frameon=False,
+        fontsize=14,
+        ncol=1,
+    )
+
+    # IOB/CHO legend below IOB plots
+    ax_legend_iob.legend(
+        lines_left,
+        ["IOB", "CHO"],
+        loc="center",
+        frameon=False,
+        fontsize=14,
+        ncol=2,
+    )
+
+    fig.tight_layout()
+    fig.subplots_adjust(bottom=0.08)
+    return fig
+
+
+def plot_comparison_and_save_with_tir(
+    data_left, data_right, file_name, tir_config, title_left="", title_right=""
+):
+    """
+    Save a side-by-side comparison plot with shared legend.
+
+    Args:
+        data_left: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
+        data_right: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
+        file_name: Path to save the figure
+        tir_config: TIRConfig instance
+        title_left: Title for left plot
+        title_right: Title for right plot
+    """
+    fig = _create_comparison_figure_with_tir(
+        data_left, data_right, tir_config, title_left, title_right
     )
     fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
     plt.close(fig)

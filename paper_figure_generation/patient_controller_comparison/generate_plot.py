@@ -7,7 +7,7 @@ Adjust layout and styling here without re-running simulations.
 
 import csv
 from pathlib import Path
-from plot import TIRConfig, plot_bg_cho_iob_and_save_with_tir
+from plot import TIRConfig, plot_bg_cho_iob_and_save_with_tir, plot_comparison_and_save_with_tir
 
 file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
@@ -105,5 +105,37 @@ def generate_all_plots():
         generate_plot_from_csv(csv_file)
 
 
+def generate_comparison_plot(csv_left, csv_right, output_file, title_left="", title_right=""):
+    """
+    Generate a side-by-side comparison plot from two CSV files.
+
+    Args:
+        csv_left: Path to left CSV file
+        csv_right: Path to right CSV file
+        output_file: Path for output PNG
+        title_left: Title for left plot
+        title_right: Title for right plot
+    """
+    data_left = load_simulation_data(csv_left)
+    data_right = load_simulation_data(csv_right)
+
+    tir_config = TIRConfig()
+    data_left["time_in_range"] = tir_config.calculate_time_in_range(data_left["BG"])
+    data_right["time_in_range"] = tir_config.calculate_time_in_range(data_right["BG"])
+
+    plot_comparison_and_save_with_tir(
+        data_left, data_right, output_file, tir_config, title_left, title_right
+    )
+    print(f"Comparison plot saved to: {output_file}")
+
+
 if __name__ == "__main__":
-    generate_all_plots()
+    # Generate comparison plot
+    basal_csv = data_dir / "t1dm_adult#007_basal_bolus_75g_at_20min.csv"
+    oref0_csv = data_dir / "t1dm_adult#007_oref0_bolus_75g_at_20min.csv"
+    output = result_dir / "comparison_basal_vs_oref0.png"
+
+    generate_comparison_plot(
+        basal_csv, oref0_csv, output,
+        title_left="Basal-Bolus", title_right="OpenAPS oref0"
+    )

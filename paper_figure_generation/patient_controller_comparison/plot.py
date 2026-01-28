@@ -9,6 +9,7 @@ from enum import Enum
 from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
+from matplotlib.patches import Patch
 import matplotlib as mpl
 
 # Set Calibri font globally
@@ -447,6 +448,17 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
         time_in_range: Dict with time in range statistics (using TIRCategory enum as keys)
         tir_config: TIRConfig instance to use for getting thresholds and order
     """
+    # Layout parameters (tune these values as needed)
+    BAR_WIDTH = 6.0
+    BAR_X_POSITION = 1.5
+    THRESHOLD_LABEL_OFFSET = 0.1
+    TITLE_OFFSET = 0.8
+    X_LIMIT_LEFT = -1.0
+    X_LIMIT_RIGHT = 4.0
+    LABEL_FONTSIZE = 12
+    THRESHOLD_FONTSIZE = 12
+    TITLE_FONTSIZE = 14
+
     # Remove all spines and ticks
     for spine in scale_ax.spines.values():
         spine.set_visible(False)
@@ -457,8 +469,6 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
     thresholds = tir_config.get_thresholds()
 
     # Create vertical stacked bar
-    x_position = 0
-    bar_width = 0.8
     bottom = 0
 
     # Draw each segment in specified order
@@ -468,10 +478,10 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
             if percentage > 0:  # Only draw if percentage > 0
                 color = tir_config.get_color(category)
                 scale_ax.bar(
-                    x_position,
+                    BAR_X_POSITION,
                     percentage,
                     bottom=bottom,
-                    width=bar_width,
+                    width=BAR_WIDTH,
                     color=color,
                     edgecolor="white",
                     linewidth=1,
@@ -479,14 +489,14 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
 
                 # Add text label (centered inside bar segment)
                 scale_ax.text(
-                    x_position,
+                    BAR_X_POSITION,
                     bottom + percentage / 2,
                     f"{percentage:.1f}%",
                     ha="center",
                     va="center",
                     color="black",
                     fontweight="bold",
-                    fontsize=12,
+                    fontsize=LABEL_FONTSIZE,
                 )
 
                 bottom += percentage
@@ -501,12 +511,12 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
                 if category != TIRCategory.VERY_LOW:  # Don't show 0 at the bottom
                     threshold_mmol = thresholds[category] / 18.0
                     scale_ax.text(
-                        x_position - bar_width / 2 - 0.1,
+                        BAR_X_POSITION - BAR_WIDTH / 2 - THRESHOLD_LABEL_OFFSET,
                         cumulative_height,
                         f"{threshold_mmol:.1f}",
                         ha="right",
                         va="center",
-                        fontsize=12,
+                        fontsize=THRESHOLD_FONTSIZE,
                         color="black",
                     )
                 cumulative_height += percentage
@@ -518,17 +528,29 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
                     # Always show the threshold, regardless of whether next section exists
                     threshold_mmol = thresholds[next_category] / 18.0
                     scale_ax.text(
-                        x_position - bar_width / 2 - 0.1,
+                        BAR_X_POSITION - BAR_WIDTH / 2 - THRESHOLD_LABEL_OFFSET,
                         cumulative_height,
                         f"{threshold_mmol:.1f}",
                         ha="right",
                         va="center",
-                        fontsize=12,
+                        fontsize=THRESHOLD_FONTSIZE,
                         color="black",
                     )
 
+    # Add rotated "Percentage time in range" text on the right side
+    scale_ax.text(
+        BAR_X_POSITION + BAR_WIDTH / 2 + TITLE_OFFSET,
+        50,
+        "Percentage time in range",
+        ha="left",
+        va="center",
+        fontsize=TITLE_FONTSIZE,
+        color="black",
+        rotation=90,
+    )
+
     # Set axis limits for vertical bar
-    scale_ax.set_xlim(-0.5, 0.5)
+    scale_ax.set_xlim(X_LIMIT_LEFT, X_LIMIT_RIGHT)
     scale_ax.set_ylim(0, 100)
 
 
@@ -873,6 +895,7 @@ def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
     line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
+    ax2.set_yticks([0, 25, 50, 75])
     ax2.spines["top"].set_visible(False)
     ax2.spines["left"].set_visible(False)
 
@@ -904,7 +927,7 @@ def _create_comparison_figure_with_tir(
     # Layout rows: [BG plots, BG legend, IOB plots, IOB legend]
     # Layout cols: [left_plot, left_tir, gap, right_plot, right_tir]
     fig_height = plot_height + iob_height + legend_height * 2
-    gap_width = 0.8
+    gap_width = 0.6
     total_width = plot_width * 2 + tir_width * 2 + gap_width + 2
 
     fig = plt.figure(figsize=(total_width, fig_height))
@@ -973,15 +996,22 @@ def _create_comparison_figure_with_tir(
         ha="left",
     )
 
-    # Glucose legend below glucose plots
+    # Glucose legend below glucose plots with TIR color indicators
     bg_handle = ax_bg_left.get_legend_handles_labels()[0]
+    tir_patches = [
+        Patch(
+            facecolor=tir_config.get_color(TIRCategory.HIGH),
+            label="Hyperglycemia (TAR)",
+        ),
+        Patch(facecolor=tir_config.get_color(TIRCategory.TARGET), label="TIR"),
+    ]
     ax_legend_bg.legend(
-        bg_handle,
-        ["Glucose"],
+        bg_handle + tir_patches,
+        ["Glucose", "Hyperglycemia (TAR)", "TIR"],
         loc="center",
         frameon=False,
         fontsize=14,
-        ncol=1,
+        ncol=3,
     )
 
     # IOB/CHO legend below IOB plots

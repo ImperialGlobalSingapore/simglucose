@@ -69,13 +69,13 @@ def generate_plot_from_csv(csv_file, output_file=None):
 
     Args:
         csv_file: Path to CSV file
-        output_file: Path for output PNG (default: same name in result/ folder)
+        output_file: Path for output SVG (default: same name in result/ folder)
     """
     csv_path = Path(csv_file)
     data = load_simulation_data(csv_path)
 
     if output_file is None:
-        output_file = result_dir / csv_path.with_suffix(".png").name
+        output_file = result_dir / csv_path.with_suffix(".svg").name
 
     tir_config = TIRConfig()
     time_in_range = tir_config.calculate_time_in_range(data["BG"])
@@ -112,7 +112,7 @@ def generate_comparison_plot(csv_left, csv_right, output_file, title_left="", ti
     Args:
         csv_left: Path to left CSV file
         csv_right: Path to right CSV file
-        output_file: Path for output PNG
+        output_file: Path for output SVG
         title_left: Title for left plot
         title_right: Title for right plot
     """
@@ -133,7 +133,7 @@ if __name__ == "__main__":
     # Generate comparison plot
     basal_csv = data_dir / "t1dm_adult#007_basal_bolus_75g_at_20min.csv"
     oref0_csv = data_dir / "t1dm_adult#007_oref0_bolus_75g_at_20min.csv"
-    output = result_dir / "comparison_basal_vs_oref0.png"
+    output = result_dir / "comparison_basal_vs_oref0.svg"
 
     generate_comparison_plot(
         basal_csv, oref0_csv, output,

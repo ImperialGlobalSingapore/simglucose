@@ -53,7 +53,7 @@ def _plot_bg(ax, t, CGM, BG):
     BG_mmol = [bg / 18.0 for bg in BG]
 
     ax.plot(t, CGM_mmol, color="#FF69B4", linewidth=2, label="CGM reading")
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Patient Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Virtual Participant Glucose")
 
     # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
@@ -267,7 +267,7 @@ def _plot_bg_merged(ax, t, CGM_no_attack, t_attack, CGM_attack, BG):
         linewidth=2,
         label="CGM Reading (Attack)",
     )
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Patient Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Virtual Participant Glucose")
 
     max_t = max(max(t), max(t_attack))
     ax.set_xlim(0, max_t)
@@ -295,6 +295,55 @@ def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
     ax2.spines["left"].set_visible(False)
 
     return line1 + line2
+
+
+def _plot_cho_iob_merged(ax, t, CHO, IOB, t_attack, IOB_attack):
+    """
+    Plot IOB (no attack), IOB (attack), and CHO on the given axis.
+
+    Args:
+        ax: Matplotlib axis (primary, for IOB)
+        t: Time array for no-attack data
+        CHO: Carbohydrate array
+        IOB: Insulin on Board array (no attack)
+        t_attack: Time array for attack data
+        IOB_attack: Insulin on Board array (attack)
+
+    Returns:
+        tuple: (lines, labels) for legend creation
+    """
+    iob_color = "#2596BE"
+    iob_attack_color = "#FF69B4"
+
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line2 = ax.plot(
+        t_attack,
+        IOB_attack,
+        color=iob_attack_color,
+        linestyle="-",
+        linewidth=2,
+        label="IOB (Attack)",
+    )
+    ax.set_ylabel("IOB (U)", color=iob_color)
+    ax.tick_params(axis="y", labelcolor=iob_color)
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    max_t = max(max(t), max(t_attack))
+    ax.set_xlim(0, max_t)
+
+    cho_color = "#E96929"
+    ax2 = ax.twinx()
+    line3 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    ax2.set_ylabel("CHO (g)", color=cho_color)
+    ax2.tick_params(axis="y", labelcolor=cho_color)
+
+    ax2.spines["top"].set_visible(False)
+    ax2.spines["left"].set_visible(False)
+
+    lines = line1 + line2 + line3
+    labels = [line.get_label() for line in lines]
+    return lines, labels
 
 
 def _create_merged_figure(data_no_attack, data_attack):
@@ -331,9 +380,14 @@ def _create_merged_figure(data_no_attack, data_attack):
         data_no_attack["BG"],
     )
 
-    # Plot IOB/CHO from no-attack data
-    cho_iob_lines, cho_iob_labels = _plot_cho_iob(
-        ax1, data_no_attack["t"], data_no_attack["CHO"], data_no_attack["IOB"]
+    # Plot IOB/CHO from both datasets
+    cho_iob_lines, cho_iob_labels = _plot_cho_iob_merged(
+        ax1,
+        data_no_attack["t"],
+        data_no_attack["CHO"],
+        data_no_attack["IOB"],
+        data_attack["t"],
+        data_attack["IOB"],
     )
 
     # Add subplot labels (a, b)
@@ -375,7 +429,7 @@ def _create_merged_figure(data_no_attack, data_attack):
         cho_iob_labels,
         loc="upper center",
         bbox_to_anchor=(0.5, -0.12),
-        ncol=2,
+        ncol=3,
         frameon=False,
     )
 

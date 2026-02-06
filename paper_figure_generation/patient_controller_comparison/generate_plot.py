@@ -126,7 +126,8 @@ def generate_comparison_plot(csv_left, csv_right, output_file, title_left="", ti
     plot_comparison_and_save_with_tir(
         data_left, data_right, output_file, tir_config, title_left, title_right
     )
-    print(f"Comparison plot saved to: {output_file}")
+    output_path = Path(output_file)
+    print(f"Comparison plot saved to: {output_path.with_suffix('.svg')} and {output_path.with_suffix('.png')}")
 
 
 if __name__ == "__main__":

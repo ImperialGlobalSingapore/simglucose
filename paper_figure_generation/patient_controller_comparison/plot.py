@@ -295,7 +295,7 @@ def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):
     # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
     ax.set_ylim(3.9, 13.9)
-    ax.set_yticks([3.9, 6, 8, 10, 12, 13.9])
+    ax.set_yticks([4, 6, 8, 10, 12, 14])
 
     _style_axis(ax, ylabel="Glucose (mmol/L)")
 
@@ -876,7 +876,7 @@ def _plot_bg_no_legend(ax, t, BG):
     ax.plot(t, BG_mmol, color="black", linewidth=2, label="Glucose")
     ax.set_xlim(0, max(t))
     ax.set_ylim(3.9, 13.9)
-    ax.set_yticks([3.9, 6, 8, 10, 12, 13.9])
+    ax.set_yticks([4, 6, 8, 10, 12, 14])
     _style_axis(ax, ylabel="Glucose (mmol/L)")
 
 
@@ -1038,7 +1038,7 @@ def plot_comparison_and_save_with_tir(
     Args:
         data_left: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
         data_right: Dict with keys 't', 'BG', 'CHO', 'IOB', 'time_in_range'
-        file_name: Path to save the figure
+        file_name: Path to save the figure (saves both SVG and PNG)
         tir_config: TIRConfig instance
         title_left: Title for left plot
         title_right: Title for right plot
@@ -1046,5 +1046,9 @@ def plot_comparison_and_save_with_tir(
     fig = _create_comparison_figure_with_tir(
         data_left, data_right, tir_config, title_left, title_right
     )
-    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
+    file_path = Path(file_name)
+    svg_path = file_path.with_suffix(".svg")
+    png_path = file_path.with_suffix(".png")
+    fig.savefig(svg_path, bbox_inches="tight", pad_inches=0.1)
+    fig.savefig(png_path, bbox_inches="tight", pad_inches=0.1, dpi=300)
     plt.close(fig)

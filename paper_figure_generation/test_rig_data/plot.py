@@ -12,7 +12,7 @@ import matplotlib as mpl
 
 # Set Calibri font globally
 mpl.rcParams["font.family"] = "Calibri"
-mpl.rcParams["font.size"] = 14
+mpl.rcParams["font.size"] = 15
 mpl.rcParams["font.weight"] = "bold"
 mpl.rcParams["axes.linewidth"] = 2
 mpl.rcParams["xtick.major.width"] = 2
@@ -52,8 +52,8 @@ def _plot_bg(ax, t, CGM, BG):
     CGM_mmol = [cgm / 18.0 for cgm in CGM]
     BG_mmol = [bg / 18.0 for bg in BG]
 
-    ax.plot(t, CGM_mmol, color="#FF69B4", linewidth=2, label="CGM reading")
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Virtual Participant Glucose")
+    ax.plot(t, CGM_mmol, color="#FF69B4", linewidth=3, label="CGM reading")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Participant Glucose")
 
     # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
@@ -78,7 +78,7 @@ def _plot_cho_iob(ax, t, CHO, IOB):
     """
     # Plot IOB on primary y-axis
     iob_color = "#2596BE"
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=3, label="IOB")
     ax.set_ylabel("IOB (U)", color=iob_color)
     ax.tick_params(axis="y", labelcolor=iob_color)
 
@@ -90,7 +90,7 @@ def _plot_cho_iob(ax, t, CHO, IOB):
     # Plot CHO on secondary y-axis
     cho_color = "#E96929"
     ax2 = ax.twinx()
-    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=3, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
 
@@ -127,7 +127,7 @@ def _plot_bg_cho_iob(fig, ax, t, CGM, BG, CHO, IOB, add_labels=False):
             1.05,
             "a",
             transform=ax[0].transAxes,
-            fontsize=20,
+            fontsize=21,
             fontweight="bold",
             va="bottom",
             ha="left",
@@ -137,7 +137,7 @@ def _plot_bg_cho_iob(fig, ax, t, CGM, BG, CHO, IOB, add_labels=False):
             1.05,
             "b",
             transform=ax[1].transAxes,
-            fontsize=20,
+            fontsize=21,
             fontweight="bold",
             va="bottom",
             ha="left",
@@ -233,7 +233,9 @@ def plot_bg_cho_iob_and_save(t, CGM, BG, CHO, IOB, file_name, add_labels=False):
         add_labels: Whether to add subplot labels (a, b)
     """
     fig = _create_bg_cho_iob_figure(t, CGM, BG, CHO, IOB, add_labels=add_labels)
-    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
+    file_path = Path(file_name)
+    fig.savefig(file_path.with_suffix(".svg"), bbox_inches="tight", pad_inches=0.1)
+    fig.savefig(file_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.1, dpi=300)
     plt.close(fig)
 
 
@@ -257,17 +259,17 @@ def _plot_bg_merged(ax, t, CGM_no_attack, t_attack, CGM_attack, BG):
         t,
         CGM_no_attack_mmol,
         color="#1E90FF",
-        linewidth=2,
+        linewidth=3,
         label="CGM Reading",
     )
     ax.plot(
         t_attack,
         CGM_attack_mmol,
         color="#FF69B4",
-        linewidth=2,
+        linewidth=3,
         label="CGM Reading (Attack)",
     )
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Virtual Participant Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Participant Glucose")
 
     max_t = max(max(t), max(t_attack))
     ax.set_xlim(0, max_t)
@@ -279,7 +281,7 @@ def _plot_bg_merged(ax, t, CGM_no_attack, t_attack, CGM_attack, BG):
 def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
     """Plot IOB and CHO without legend, return lines for shared legend."""
     iob_color = "#2596BE"
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=3, label="IOB")
     ax.set_ylabel("IOB (U)", color=iob_color)
     ax.tick_params(axis="y", labelcolor=iob_color)
     ax.spines["top"].set_visible(False)
@@ -288,7 +290,7 @@ def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
 
     cho_color = "#E96929"
     ax2 = ax.twinx()
-    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=3, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
     ax2.spines["top"].set_visible(False)
@@ -315,13 +317,13 @@ def _plot_cho_iob_merged(ax, t, CHO, IOB, t_attack, IOB_attack):
     iob_color = "#2596BE"
     iob_attack_color = "#FF69B4"
 
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=3, label="IOB")
     line2 = ax.plot(
         t_attack,
         IOB_attack,
         color=iob_attack_color,
         linestyle="-",
-        linewidth=2,
+        linewidth=3,
         label="IOB (Attack)",
     )
     ax.set_ylabel("IOB (U)", color=iob_color)
@@ -334,7 +336,7 @@ def _plot_cho_iob_merged(ax, t, CHO, IOB, t_attack, IOB_attack):
 
     cho_color = "#E96929"
     ax2 = ax.twinx()
-    line3 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    line3 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=3, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
 
@@ -346,7 +348,7 @@ def _plot_cho_iob_merged(ax, t, CHO, IOB, t_attack, IOB_attack):
     return lines, labels
 
 
-def _create_merged_figure(data_no_attack, data_attack):
+def _create_merged_figure(data_no_attack, data_attack, attack_times=None):
     """
     Create a merged plot figure with attack vs no-attack CGM readings.
 
@@ -390,13 +392,30 @@ def _create_merged_figure(data_no_attack, data_attack):
         data_attack["IOB"],
     )
 
+    # Annotate attack episode
+    if attack_times is not None:
+        attack_start, attack_end = attack_times
+        for ax in [ax0, ax1]:
+            ax.axvspan(attack_start, attack_end, facecolor="lightgrey", alpha=0.3, zorder=0)
+
+        arrow_y = 17.5
+        ax0.annotate(
+            "", xy=(attack_end, arrow_y), xytext=(attack_start, arrow_y),
+            arrowprops=dict(arrowstyle="<->", color="black", lw=2),
+        )
+        ax0.text(
+            (attack_start + attack_end) / 2, 18.0,
+            "Attack Episode",
+            ha="center", va="bottom", fontsize=15, fontweight="bold",
+        )
+
     # Add subplot labels (a, b)
     ax0.text(
         -0.12,
         1.05,
         "a",
         transform=ax0.transAxes,
-        fontsize=20,
+        fontsize=21,
         fontweight="bold",
         va="bottom",
         ha="left",
@@ -406,20 +425,29 @@ def _create_merged_figure(data_no_attack, data_attack):
         1.05,
         "b",
         transform=ax1.transAxes,
-        fontsize=20,
+        fontsize=21,
         fontweight="bold",
         va="bottom",
         ha="left",
     )
 
-    # Add glucose legend below glucose subplot
+    # Add glucose legend below glucose subplot (two centered rows)
     bg_handles, bg_labels = ax0.get_legend_handles_labels()
-    ax0.legend(
-        bg_handles,
-        bg_labels,
+    leg1 = ax0.legend(
+        bg_handles[:2],
+        bg_labels[:2],
         loc="upper center",
         bbox_to_anchor=(0.5, -0.08),
-        ncol=3,
+        ncol=2,
+        frameon=False,
+    )
+    ax0.add_artist(leg1)
+    ax0.legend(
+        bg_handles[2:],
+        bg_labels[2:],
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.18),
+        ncol=1,
         frameon=False,
     )
 
@@ -443,7 +471,7 @@ def _create_merged_figure(data_no_attack, data_attack):
     return fig
 
 
-def plot_merged_and_save(data_no_attack, data_attack, file_name):
+def plot_merged_and_save(data_no_attack, data_attack, file_name, attack_times=None):
     """
     Save a merged plot comparing attack vs no-attack CGM readings.
 
@@ -451,7 +479,10 @@ def plot_merged_and_save(data_no_attack, data_attack, file_name):
         data_no_attack: Dict with keys 't', 'CGM', 'BG', 'CHO', 'IOB'
         data_attack: Dict with keys 't', 'CGM', 'BG', 'CHO', 'IOB'
         file_name: Path to save the figure
+        attack_times: Tuple of (start, end) in minutes for the attack episode
     """
-    fig = _create_merged_figure(data_no_attack, data_attack)
-    fig.savefig(f"{file_name}", bbox_inches="tight", pad_inches=0.1)
+    fig = _create_merged_figure(data_no_attack, data_attack, attack_times)
+    file_path = Path(file_name)
+    fig.savefig(file_path.with_suffix(".svg"), bbox_inches="tight", pad_inches=0.1)
+    fig.savefig(file_path.with_suffix(".png"), bbox_inches="tight", pad_inches=0.1, dpi=300)
     plt.close(fig)

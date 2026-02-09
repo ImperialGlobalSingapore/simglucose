@@ -14,7 +14,7 @@ import matplotlib as mpl
 
 # Set Calibri font globally
 mpl.rcParams["font.family"] = "Calibri"
-mpl.rcParams["font.size"] = 14
+mpl.rcParams["font.size"] = 15
 mpl.rcParams["font.weight"] = "bold"
 mpl.rcParams["axes.linewidth"] = 2
 mpl.rcParams["xtick.major.width"] = 2
@@ -290,7 +290,7 @@ def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):
     # Convert mg/dL to mmol/L (divide by 18)
     BG_mmol = [bg / 18.0 for bg in BG]
 
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Glucose")
 
     # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
@@ -342,7 +342,7 @@ def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     """
     # Plot IOB on primary y-axis
     iob_color = "#2596BE"
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=3, label="IOB")
     ax.set_ylabel("IOB (U)", color=iob_color)
     ax.tick_params(axis="y", labelcolor=iob_color)
 
@@ -354,7 +354,7 @@ def _plot_cho_iob(ax, t, CHO, IOB, show_legend=False):
     # Plot CHO on secondary y-axis
     cho_color = "#E96929"
     ax2 = ax.twinx()
-    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=3, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
 
@@ -455,9 +455,9 @@ def _plot_time_in_range_scale(scale_ax, time_in_range, tir_config: TIRConfig):
     TITLE_OFFSET = 0.8
     X_LIMIT_LEFT = -1.0
     X_LIMIT_RIGHT = 4.0
-    LABEL_FONTSIZE = 12
-    THRESHOLD_FONTSIZE = 12
-    TITLE_FONTSIZE = 14
+    LABEL_FONTSIZE = 13
+    THRESHOLD_FONTSIZE = 13
+    TITLE_FONTSIZE = 15
 
     # Remove all spines and ticks
     for spine in scale_ax.spines.values():
@@ -873,7 +873,7 @@ def plot_bg_cho_iob_and_save_with_tir(
 def _plot_bg_no_legend(ax, t, BG):
     """Plot blood glucose without legend."""
     BG_mmol = [bg / 18.0 for bg in BG]
-    ax.plot(t, BG_mmol, color="black", linewidth=2, label="Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Glucose")
     ax.set_xlim(0, max(t))
     ax.set_ylim(3.9, 13.9)
     ax.set_yticks([4, 6, 8, 10, 12, 14])
@@ -883,7 +883,7 @@ def _plot_bg_no_legend(ax, t, BG):
 def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
     """Plot IOB and CHO without legend, return lines for shared legend."""
     iob_color = "#2596BE"
-    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=2, label="IOB")
+    line1 = ax.plot(t, IOB, color=iob_color, linestyle="-", linewidth=3, label="IOB")
     ax.set_ylabel("IOB (U)", color=iob_color)
     ax.tick_params(axis="y", labelcolor=iob_color)
     ax.spines["top"].set_visible(False)
@@ -892,7 +892,7 @@ def _plot_cho_iob_no_legend(ax, t, CHO, IOB):
 
     cho_color = "#E96929"
     ax2 = ax.twinx()
-    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=2, label="CHO")
+    line2 = ax2.plot(t, CHO, color=cho_color, linestyle="-", linewidth=3, label="CHO")
     ax2.set_ylabel("CHO (g)", color=cho_color)
     ax2.tick_params(axis="y", labelcolor=cho_color)
     ax2.set_yticks([0, 25, 50, 75])
@@ -976,21 +976,21 @@ def _create_comparison_figure_with_tir(
 
     # Add subplot labels (a) and (b)
     ax_bg_left.text(
-        -0.15,
+        -0.12,
         1.05,
         "a",
         transform=ax_bg_left.transAxes,
-        fontsize=20,
+        fontsize=21,
         fontweight="bold",
         va="bottom",
         ha="left",
     )
     ax_bg_right.text(
-        -0.15,
+        -0.12,
         1.05,
         "b",
         transform=ax_bg_right.transAxes,
-        fontsize=20,
+        fontsize=21,
         fontweight="bold",
         va="bottom",
         ha="left",
@@ -1010,7 +1010,7 @@ def _create_comparison_figure_with_tir(
         ["Glucose", "Hyperglycemia (TAR)", "TIR"],
         loc="center",
         frameon=False,
-        fontsize=14,
+        fontsize=15,
         ncol=3,
     )
 
@@ -1020,7 +1020,7 @@ def _create_comparison_figure_with_tir(
         ["IOB", "CHO"],
         loc="center",
         frameon=False,
-        fontsize=14,
+        fontsize=15,
         ncol=2,
     )
 

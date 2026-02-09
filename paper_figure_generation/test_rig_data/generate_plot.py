@@ -23,6 +23,11 @@ csv_groups = [
     ("adult_007_20260113_145352.csv", "adult_007_20260112_141550.csv"),
 ]
 
+attack_times = [
+    (32, 153),
+    (30, 153),
+    (30, 151),
+]
 
 def load_test_rig_data(csv_file):
     """
@@ -95,7 +100,7 @@ def generate_plot_from_csv(csv_file, output_file=None, add_labels=False):
     print(f"Plot saved to: {output_file}")
 
 
-def generate_merged_plot(csv_no_attack, csv_attack, output_file):
+def generate_merged_plot(csv_no_attack, csv_attack, output_file, attack_times=None):
     """
     Generate a merged plot comparing attack vs no-attack CGM readings.
 
@@ -103,11 +108,12 @@ def generate_merged_plot(csv_no_attack, csv_attack, output_file):
         csv_no_attack: Path to no-attack CSV file (1st in pair)
         csv_attack: Path to attack CSV file (2nd in pair)
         output_file: Path for output SVG
+        attack_times: Tuple of (start, end) in minutes for the attack episode
     """
     data_no_attack = load_test_rig_data(csv_no_attack)
     data_attack = load_test_rig_data(csv_attack)
 
-    plot_merged_and_save(data_no_attack, data_attack, output_file)
+    plot_merged_and_save(data_no_attack, data_attack, output_file, attack_times)
     print(f"Merged plot saved to: {output_file}")
 
 
@@ -125,7 +131,7 @@ def generate_all_plots():
 
         output_file = result_dir / f"group_{i+1}.svg"
         print(f"Processing merged: {no_attack_file} + {attack_file}")
-        generate_merged_plot(no_attack_path, attack_path, output_file)
+        generate_merged_plot(no_attack_path, attack_path, output_file, attack_times[i])
 
     # Generate individual plots for non-grouped files
     csv_files = list(data_dir.glob("*.csv"))

@@ -53,7 +53,7 @@ def _plot_bg(ax, t, CGM, BG):
     BG_mmol = [bg / 18.0 for bg in BG]
 
     ax.plot(t, CGM_mmol, color="#FF69B4", linewidth=3, label="CGM reading")
-    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Participant Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Subject Glucose")
 
     # Set axis limits (converted to mmol/L)
     ax.set_xlim(0, max(t))
@@ -269,7 +269,7 @@ def _plot_bg_merged(ax, t, CGM_no_attack, t_attack, CGM_attack, BG):
         linewidth=3,
         label="CGM Reading (Attack)",
     )
-    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Participant Glucose")
+    ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Subject Glucose")
 
     max_t = max(max(t), max(t_attack))
     ax.set_xlim(0, max_t)

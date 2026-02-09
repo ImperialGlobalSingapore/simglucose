@@ -129,7 +129,7 @@ def generate_all_plots():
         grouped_files.add(no_attack_path)
         grouped_files.add(attack_path)
 
-        output_file = result_dir / f"group_{i+1}.svg"
+        output_file = result_dir / f"hcl_attack_group_{i+1}.svg"
         print(f"Processing merged: {no_attack_file} + {attack_file}")
         generate_merged_plot(no_attack_path, attack_path, output_file, attack_times[i])
 

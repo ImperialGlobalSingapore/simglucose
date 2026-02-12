@@ -266,8 +266,9 @@ def _plot_bg_merged(ax, t, CGM_no_attack, t_attack, CGM_attack, BG):
         t_attack,
         CGM_attack_mmol,
         color="#FF69B4",
-        linewidth=3,
         label="CGM Reading (Attack)",
+        marker=".",
+        linestyle="None",
     )
     ax.plot(t, BG_mmol, color="black", linewidth=3, label="Virtual Subject Glucose")
 

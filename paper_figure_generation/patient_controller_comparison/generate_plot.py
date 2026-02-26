@@ -7,7 +7,7 @@ Adjust layout and styling here without re-running simulations.
 
 import csv
 from pathlib import Path
-from plot import TIRConfig, plot_bg_cho_iob_and_save_with_tir, plot_comparison_and_save_with_tir
+from plot import TIRConfig, plot_bg_cho_iob_and_save, plot_comparison_and_save_with_tir
 
 file_path = Path(__file__).resolve()
 parent_folder = file_path.parent
@@ -80,12 +80,11 @@ def generate_plot_from_csv(csv_file, output_file=None):
     tir_config = TIRConfig()
     time_in_range = tir_config.calculate_time_in_range(data["BG"])
 
-    plot_bg_cho_iob_and_save_with_tir(
+    plot_bg_cho_iob_and_save(
         data["t"],
         data["BG"],
         data["CHO"],
         data["IOB"],
-        data["target"],
         output_file,
         time_in_range,
         tir_config,

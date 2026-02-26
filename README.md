@@ -6,9 +6,13 @@
 
 A Type-1 Diabetes simulator implemented in Python for Reinforcement Learning purpose
 
-This simulator is a python implementation of the FDA-approved [UVa/Padova Simulator (2008 version)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4454102/) for research purpose only. The simulator includes 30 virtual patients, 10 adolescents, 10 adults, 10 children. There is [documentation of the virtual patient's parameters](https://github.com/jxx123/simglucose/blob/master/definitions_of_vpatient_parameters.md).
+This is an extended fork of [jxx123/simglucose](https://github.com/jxx123/simglucose), a python implementation of the FDA-approved [UVa/Padova Simulator (2008 version)](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4454102/) for research purpose only. The simulator includes 30 virtual patients, 10 adolescents, 10 adults, 10 children. There is [documentation of the virtual patient's parameters](https://github.com/jxx123/simglucose/blob/master/definitions_of_vpatient_parameters.md).
 
-**HOW TO CITE**: Jinyu Xie. Simglucose v0.2.1 (2018) \[Online\]. Available: https://github.com/jxx123/simglucose. Accessed on: Month-Date-Year.
+This fork extends the original with an enhanced patient model, OpenAPS oref0 integration, additional controllers (PID, meal bolus), predefined meal scenarios, clinical Time-in-Range analytics, CGM attack simulation, and a FastAPI server with Docker support.
+
+**HOW TO CITE**:
+1. TODO
+2. Jinyu Xie. Simglucose v0.2.1 (2018) \[Online\]. Available: https://github.com/jxx123/simglucose. Accessed on: Month-Date-Year.
 
 **Notice**: simglucose no longer supports python 3.7 and 3.8, please update to >=3.9 verison. Thanks!
 
@@ -30,6 +34,17 @@ This simulator is a python implementation of the FDA-approved [UVa/Padova Simula
 - You can specify random seed in case you want to repeat your experiments.
 - The simulator will generate several plots for performance analysis after simulation. The plots include blood glucose trace plot, Control Variability Grid Analysis (CVGA) plot, statistics plot of blood glucose in different zones, risk indices statistics plot.
 - NOTE: `animate` and `parallel` cannot be set to `True` at the same time in macOS. Most backends of matplotlib in macOS is not thread-safe. Windows has not been tested. Let me know the results if anybody has tested it out.
+
+### New Features
+
+- **Enhanced patient model** (`T1DMPatient`): 18-state ODE model (vs 13 in the original) with glucagon metabolism, insulin-on-board (IOB) calculation, and JSON-based patient parameters.
+- **OpenAPS oref0 controller** (`ORefZero`): Automated insulin dosing via communication with an OpenAPS Node.js server, supporting glucose history tracking, patient profile management, and IOB calculation. Requires launching the [oref0 server](https://github.com/ImperialGlobalSingapore/oref0).
+- **Meal bolus controller** (`MealBolusCtrller`, `ORefZeroWithMealBolus`): Predictive meal bolus delivery with configurable timing and carb estimation error, composable with oref0 for combined basal + bolus control.
+- **Additional controllers**: `SimplePIDController` (with hypo-suspension safety), `ManualBasalBolusCtrller` (traditional insulin management), and a refactored `PIDController` with improved insulin delivery calculations.
+- **Predefined meal scenarios** (`ScenarioSimple`): NO_MEAL, SINGLE_MEAL, ONE_DAY, THREE_DAY, and RANDOM_ONE_DAY with body-weight-scaled carbohydrate amounts and realistic meal timing distributions.
+- **Time-in-Range analytics**: Clinical glucose control metrics with two standards (BASIC 4-category, CLINICAL 5-category including severe hypoglycemia), with acceptable range validation against published clinical data.
+- **CGM attack simulation**: Blood glucose spoofing with ramping attack patterns for cybersecurity research on closed-loop insulin delivery systems.
+- **FastAPI server** (`app.py`): HTTP API for running simulations step-by-step, with Docker support (`Dockerfile`, `docker-compose.yml`) for containerized deployment including OpenAPS integration.
 
 ## Installation
 
@@ -366,37 +381,46 @@ report(df)
 
 ## Release Notes
 
-### 08/20/2023
+### 10/31/2025
 
-- Fixed numpy compatibility issues for risk index computation (thanks to @yihuicai)
-- Support Gymnasium.
-  - **NOTE**: the observation in gymnasium version is no longer a namedtuple with a CGM field. It is a numpy array instead (to be consistent with its space definition).
-- **NOTE**: Python 3.7 and 3.8 are no longer supported. Please update to >3.9 version.
+- Added OpenAPS oref0 controller with meal bolus support (`ORefZero`, `ORefZeroWithMealBolus`).
+- Added patient IOB and OpenAPS IOB tracking in simulation and API responses.
+- Added parameter tuning utilities for OpenAPS controller.
+- Added CGM attack simulation (`BGAttacker`) for cybersecurity research.
+- Added virtual patient ID support for parallel simulation with OpenAPS.
+- Docker support (`Dockerfile`, `docker-compose.yml`) for containerized deployment with OpenAPS server.
 
-### 03/10/2021
+### 10/23/2025
 
-- Fixed some random seed issues.
+- Added Time-in-Range analytics with BASIC and CLINICAL standards.
+- Moved tuning features into the package for reuse in external repos.
 
-### 5/27/2020
+### 10/02/2025
 
-- Add PIDController at simglucose/controller/pid_ctrller. There is an example at examples/run_pid_controller.py showing how to use it.
+- Added meal bolus controller (`MealBolusCtrller`) with carb estimation error and configurable timing.
+- Added predefined meal scenarios (`ScenarioSimple`): NO_MEAL, SINGLE_MEAL, ONE_DAY, THREE_DAY, RANDOM_ONE_DAY.
+- Added plotting utilities for controller comparison.
 
-### 9/10/2018
+### 08/25/2025
 
-- Controller `policy` method gets access to all the current patient state through `info['patient_state']`.
+- Added patient JSON data for all 30 virtual patients.
 
-### 2/26/2018
+### 07/21/2025
 
-- Support customized reward function.
+- Added `T1DMPatient`: 18-state ODE patient model reimplemented from MATLAB with glucagon metabolism and JSON-based parameters.
+- Integrated Python client for oref0 implementation.
 
-### 1/10/2018
+### 03/27/2025
 
-- Added workaround to select patient when make gym environment: register gym environment by passing kwargs of patient_name.
+- Added `SimplePIDController` with hypo-suspension safety.
+- Refactored `PIDController` with improved insulin delivery calculations.
+- Added basal rate estimation for all patients.
 
-### 1/7/2018
+### 02/25/2025
 
-- Added OpenAI gym support, use `gym.make('simglucose-v0')` to make the environment.
-- Noticed issue: the patient name selection is not available in gym.make for now. The patient name has to be hard-coded in the constructor of `simglucose.envs.T1DSimEnv`.
+- Added stepwise unrolling for patient simulation.
+- Added FastAPI server (`app.py`) for HTTP-based simulation.
+- Fixed multiprocessing and reorganized test structure.
 
 ## Reporting issues
 
@@ -495,17 +519,35 @@ Once the server is running, you can access the automatically generated API docum
 
 ### API Endpoints
 
-- `POST /init`: Initialize a new patient simulation
+- `POST /init`: Initialize a new patient simulation with a controller
 - `POST /step/{patient_id}`: Take a simulation step for a specific patient
 - `GET /patients`: List all active patient simulations
 - `DELETE /patients/{patient_id}`: Remove a patient from the simulation
+
+### Controller Algorithms
+
+The API supports three controller algorithms, specified via the `controller_algorithm` field in `/init`:
+
+| Algorithm | Value | Description |
+|---|---|---|
+| Basal-Bolus | `"basal_bolus"` | Basic basal-bolus controller (default) |
+| PID | `"pid"` | PID controller |
+| OpenAPS | `"openaps"` | OpenAPS oref0 with meal bolus (requires a running OpenAPS server) |
 
 ### Example Usage
 
 #### Initialize a patient
 
 ```bash
-curl -X POST "http://localhost:8000/init" -H "Content-Type: application/json"
+curl -X POST "http://localhost:8000/init" \
+  -H "Content-Type: application/json" \
+  -d '{"patient": "adolescent#003", "controller_algorithm": "basal_bolus"}'
+```
+
+Response:
+
+```json
+{"initial_glucose": 141.69, "patient_id": "<uuid>"}
 ```
 
 #### Take a step
@@ -516,10 +558,26 @@ curl -X POST "http://localhost:8000/step/{patient_id}" \
   -d '{"glucose_reading": 120, "carbs": 20}'
 ```
 
-#### Attack Demo
+Response:
+
+```json
+{
+  "glucose": 118.5,
+  "insulin": 0.05,
+  "patient_iob": 0.12,
+  "openaps_iob": 0.0,
+  "attack_scenario": false,
+  "real_glucose": null,
+  "attack_glucose": null
+}
+```
+
+#### Attack scenario
+
+To simulate an attack where the controller receives falsified glucose data, pass `attack_glucose` in the `/step` request. The patient model still evolves using the real `glucose_reading`, but the controller acts on the fake `attack_glucose` value.
 
 ```bash
-curl -X POST "http://localhost:8000/enhanced_attack_demo/{patient_id}" \
+curl -X POST "http://localhost:8000/step/{patient_id}" \
   -H "Content-Type: application/json" \
-  -d '{"glucose_reading": 100, "attack_glucose": 300, "carbs": 0, "controller_algorithm": "pid"}'
+  -d '{"glucose_reading": 100, "attack_glucose": 300, "carbs": 0}'
 ```

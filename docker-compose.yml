@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8000"
+      - "8082:8000"
     volumes:
       - ./app.py:/app/app.py
       - ./simglucose:/app/simglucose

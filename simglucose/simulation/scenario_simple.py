@@ -98,7 +98,7 @@ class Scenario(Enum):
         # Predefined carb amounts for each meal time
         carb_amounts = {
             Scenario.NO_MEAL: [],
-            Scenario.SINGLE_MEAL: [75],  # 75g of carbs for single meal
+            Scenario.SINGLE_MEAL: [50],  # 50g of carbs for single meal
             Scenario.ONE_DAY: [40, 60, 70],  # 40g, 60g, 70g of carbs per meal
             Scenario.THREE_DAY: [
                 40,
@@ -139,7 +139,7 @@ class Scenario(Enum):
         """Maximum simulation time in minutes for this scenario."""
         return {
             Scenario.NO_MEAL: 1000,  # 16 hours + 40 minutes
-            Scenario.SINGLE_MEAL: 1080,  # 18 hours
+            Scenario.SINGLE_MEAL: 1450,  # 24 hours + 10 minutes
             Scenario.ONE_DAY: 1450,  # 24 hours + 10 minutes
             Scenario.THREE_DAY: 4330,  # 72 hours + 10 minutes
             Scenario.RANDOM_ONE_DAY: 1450,  # 24 hours + 10 minutes

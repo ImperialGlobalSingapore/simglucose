@@ -15,9 +15,9 @@ from typing import Any, Dict, List, Tuple, Optional, Callable
 from abc import ABC, abstractmethod
 import multiprocessing
 
-from analytics.time_in_range import TIRConfig
-from plotting.plot import plot_and_save_with_tir
-from analytics.patient_types import PatientType
+from ..analytics.time_in_range import TIRConfig
+from ..plotting.plot import plot_and_save_with_tir
+from ..analytics.patient_types import PatientType
 
 
 logger = logging.getLogger(__name__)
@@ -369,9 +369,12 @@ class OpenAPSParameterTuningBase(ABC):
             json.dump(self.patient_map, f, indent=2, default=str)
         logger.info(f"Patient map saved to {patient_map_file}")
 
-        # Determine number of workers
+        # Determine number of workers (must match the logic in _execute_parallel_simulations)
         total_configs = len(self.simulation_configs)
-        num_workers = min(multiprocessing.cpu_count(), total_configs)
+        if self.max_workers is not None:
+            num_workers = min(self.max_workers, total_configs)
+        else:
+            num_workers = min(multiprocessing.cpu_count(), total_configs)
         logger.info(
             f"🚀 Starting {total_configs} simulations using {num_workers} workers..."
         )

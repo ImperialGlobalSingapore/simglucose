@@ -50,6 +50,7 @@ Auto-Configured Parameters (oref_zero.py):
     - max_daily_basal: Auto-set from current_basal
 """
 
+import hashlib
 import logging
 import matplotlib
 from pathlib import Path
@@ -60,8 +61,8 @@ from itertools import product
 
 from simglucose.patient.t1dm_patient import T1DMPatient, Action
 from simglucose.controller.oref_zero_with_meal_bolus import ORefZeroWithMealBolus, CtrlObservation
-from analytics import PatientType
-from tuning import OpenAPSParameterTuningBase
+from tests.controllers.analytics import PatientType
+from tests.controllers.tuning import OpenAPSParameterTuningBase
 
 matplotlib.use("Agg")  # Use non-interactive backend to prevent window pop-ups
 
@@ -159,13 +160,18 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         """
         patient_name, _, carb_amount = T1DMOpenAPSParameterTuning.parse_virtual_patient_id(virtual_patient_id)
 
+        # Deterministic per-trial RNG so repeated trials of the same config produce
+        # genuinely independent carb-estimation-error draws (and stay reproducible).
+        seed = int(hashlib.md5(virtual_patient_id.encode()).hexdigest(), 16) % (2**32)
+        np.random.seed(seed)
+
         p = T1DMPatient.withName(patient_name)
 
-        profile = patient_map[virtual_patient_id][1]
-
-        if profile is not None:
-            profile["carb_ratio"] = p.carb_ratio
-            profile["current_basal"] = p.basal * 60  # U/min to U/h
+        # Copy the profile — the same dict is shared across configs in patient_map,
+        # and we don't want patient-specific writes to leak between sims.
+        profile = dict(patient_map[virtual_patient_id][1])
+        profile["carb_ratio"] = p.carb_ratio
+        profile["current_basal"] = p.basal * 60  # U/min to U/h
 
         # Fixed simulation time and meal delivery at 20 minutes
         max_simulation_time = 1450  # 24 hours + 10 minutes
@@ -199,9 +205,15 @@ class T1DMOpenAPSParameterTuning(OpenAPSParameterTuningBase):
         insulin = []
         BG = []
 
+        meal_delivered = False
         while p.t_elapsed < max_simulation_time:
-            # Deliver meal at exactly 20 minutes
-            carb = carb_amount if int(p.t_elapsed) == meal_time else 0
+            # Deliver meal once, on the first step that reaches meal_time.
+            # Robust to non-integer timesteps and floating-point drift.
+            if not meal_delivered and p.t_elapsed >= meal_time:
+                carb = carb_amount
+                meal_delivered = True
+            else:
+                carb = 0
 
             ctrl_obs = CtrlObservation(CGM=p.observation.Gsub)
 
@@ -460,22 +472,21 @@ if __name__ == "__main__":
     Resplit patients into 2 groups: children (7-12), adults (16-70)
     Selected patients:
         child: child#002, child#008, child#010
-        adult: adolescent#003, adult#006, adult#009
+        adult: adolescent#003, adult#007, adult#009
 
     Goal: Find optimal parameter set for each patient that achieves
     realistic time-in-range distribution following the paper.
     """
     # Define patient groups for parameter tuning
     patients_by_group = {
+        # PatientType.CHILD: ["child#002", "child#008"],
         PatientType.CHILD: ["child#002"],
-        # PatientType.CHILD: ["child#008"],
-        # PatientType.ADULT: ["adolescent#003"],
+        # PatientType.ADULT: ["adolescent#003", "adult#007"],
         PatientType.ADULT: ["adult#007"],
     }
 
     # Create and run the experiment
-    # Limit to 6 parallel workers (good balance for 14-core system)
-    experiment = T1DMOpenAPSParameterTuning(output_dir=result_dir, max_workers=6)
+    experiment = T1DMOpenAPSParameterTuning(output_dir=result_dir, max_workers=4)
     experiment.set_patients_by_group(patients_by_group)
     results = experiment.run()
 

@@ -12,10 +12,9 @@ from simglucose.controller.oref_zero_with_meal_bolus import (
     CtrlObservation,
 )
 from simglucose.simulation.scenario_simple import Scenario
-from analytics import TIRConfig
-from plotting import plot_and_save_with_tir
+from simglucose.tests.controllers.analytics import TIRConfig
+from simglucose.tests.controllers.plotting import plot_and_save_with_tir
 from bg_attacker import BGAttacker
-
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -141,6 +140,7 @@ def patient_oref0_with_meal_bolus(
             time_in_range,
             tir_config,
         )
+        print(f"Saved plot to {file_name}")
 
     return time_in_range
 

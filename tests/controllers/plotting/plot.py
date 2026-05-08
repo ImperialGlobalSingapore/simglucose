@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib import gridspec
 
-from analytics.time_in_range import TIRCategory, TIRConfig
+from ..analytics.time_in_range import TIRCategory, TIRConfig
 
 
 def _plot_bg(ax, t, BG, target_BG=None, show_legend=False):

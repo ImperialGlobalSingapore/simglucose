@@ -32,7 +32,7 @@ class ORefZeroWithMealBolus(Controller):
         meal_schedule=None,
         carb_factor=10,
         release_time_before_meal=10,
-        carb_estimation_error=0.3,
+        carb_estimation_error=True,
         t_start=None,
     ):
         """
@@ -47,7 +47,7 @@ class ORefZeroWithMealBolus(Controller):
                           [(120, 50), (360, 75), (720, 60)]
             carb_factor: Carbohydrate factor in g/U (default: 10, meaning 1U per 10g CHO)
             release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
-            carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
+            carb_estimation_error: Flag to enable carb mis-estimation (True applies a random 11.2-30.6% error; False uses exact carbs)
             sample_time: Time period over which to deliver bolus in minutes (default: 1)
             t_start: Patient simulation start time as datetime object (optional)
         """

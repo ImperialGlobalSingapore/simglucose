@@ -103,9 +103,9 @@ def init(request: InitRequest):
             else 10
         )
         carb_estimation_error = (
-            request.controller_kwargs.get("carb_estimation_error", 0.3)
+            request.controller_kwargs.get("carb_estimation_error", True)
             if request.controller_kwargs
-            else 0.3
+            else True
         )
 
         ctrl = ORefZeroWithMealBolus(

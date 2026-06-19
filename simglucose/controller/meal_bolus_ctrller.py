@@ -19,7 +19,7 @@ class MealAnnouncementBolusController:
         meal_schedule=None,
         carb_factor: float = 10,
         release_time_before_meal: int = 10,  # minutes before meal to release bolus
-        carb_estimation_error: float = 0.3,  # +/- percentage of carb estimation error
+        carb_estimation_error: bool = True,  # flag: enable realistic carb mis-estimation
         t_start=None,  # patient start time (datetime)
     ):
         """
@@ -30,7 +30,11 @@ class MealAnnouncementBolusController:
                           [(120, 50), (360, 75), (720, 60)]
             carb_factor: Carbohydrate factor in g/U (default: 10, meaning 1U per 10g CHO)
             release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
-            carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
+            carb_estimation_error: Flag to enable carb mis-estimation. When True, the
+                          patient's estimate deviates from the true carbs by a random
+                          magnitude in [11.2%, 30.6%] (sign random), reflecting the
+                          20.9 +/- 9.7% carb-counting error reported in the literature.
+                          Set to False to disable the error (use exact carbs).
             sample_time: Time period over which to deliver bolus in minutes (default: 1)
             t_start: Patient simulation start time as datetime object (optional)
         """
@@ -68,12 +72,13 @@ class MealAnnouncementBolusController:
 
         for meal_time, meal_amount in self._meal_schedule:
             if meal_time == target_meal_time:
-                # Add randomness to meal amount to simulate patient uncertainty
-                if self.carb_estimation_error > 0:
-                    random_factor = random.uniform(
-                        -self.carb_estimation_error, self.carb_estimation_error
-                    )
-                    meal_amount *= 1 + random_factor
+                # Simulate patient carb-counting error. Patients misjudge meal carbs
+                # by 20.9 +/- 9.7% on average (range ~11.2%-30.6%), so:
+                #   patient_estimate = true_carbs +/- uniform(11.2%, 30.6%) * true_carbs
+                if self.carb_estimation_error:
+                    error_magnitude = random.uniform(0.112, 0.306)
+                    sign = random.choice([-1, 1])
+                    meal_amount *= 1 + sign * error_magnitude
 
                 # Calculate bolus in total units: meal amount / carb factor
                 bolus = meal_amount / self.carb_factor  # U

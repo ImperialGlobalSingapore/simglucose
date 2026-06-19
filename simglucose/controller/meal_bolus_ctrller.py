@@ -3,7 +3,7 @@ from collections import namedtuple
 from datetime import datetime
 
 
-Action = namedtuple("meal_bolus_action", ["bolus"])
+Action = namedtuple("meal_bolus_action", ["bolus", "estimated_carbs"])
 
 
 class MealAnnouncementBolusController:
@@ -82,8 +82,9 @@ class MealAnnouncementBolusController:
 
                 # Calculate bolus in total units: meal amount / carb factor
                 bolus = meal_amount / self.carb_factor  # U
+                estimated = round(meal_amount, 1)
 
-                return Action(bolus=bolus)  # U
+                return Action(bolus=bolus, estimated_carbs=estimated)  # U
 
         # No meal coming up, return zero bolus
-        return Action(bolus=0)
+        return Action(bolus=0, estimated_carbs=0.0)

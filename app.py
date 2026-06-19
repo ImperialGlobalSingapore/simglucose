@@ -58,6 +58,7 @@ class StepResponse(BaseModel):
     attack_glucose: Optional[float] = None  # Added: attack glucose value
     patient_iob: Optional[float] = None  # Added: IOB from patient physiological model
     openaps_iob: Optional[float] = None  # Added: IOB from OpenAPS algorithm
+    estimated_carbs: Optional[float] = None  # Added: patient-estimated carbs (with error applied)
 
 
 # Create FastAPI app
@@ -225,6 +226,10 @@ def step(patient_id: str, request: StepRequest):
         "patient_iob": patient_iob_value,
         "openaps_iob": openaps_iob_value,
     }
+
+    # Include patient-estimated carbs from the meal bolus controller (if available)
+    if isinstance(ctrl, ORefZeroWithMealBolus):
+        response["estimated_carbs"] = ctrl.estimated_carbs
 
     # If attack scenario, add additional information
     if is_attack:

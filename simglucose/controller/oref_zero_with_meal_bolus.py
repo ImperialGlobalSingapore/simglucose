@@ -70,7 +70,14 @@ class ORefZeroWithMealBolus(Controller):
             t_start=t_start,
         )
 
+        self._last_estimated_carbs = 0.0
+
         logger.info(f"ORefZeroWithMealBolus Controller initialized for patient: {patient_name}")
+
+    @property
+    def estimated_carbs(self):
+        """The estimated carbs from the most recent meal bolus (0.0 if none)."""
+        return getattr(self, "_last_estimated_carbs", 0.0)
 
     def policy(
         self,
@@ -97,6 +104,7 @@ class ORefZeroWithMealBolus(Controller):
         # Get meal announcement bolus (if any meal is upcoming)
         # MealAnnouncementBolusController will calculate elapsed_time from time - t_start
         meal_bolus_action = self.meal_bolus_controller.policy(time)
+        self._last_estimated_carbs = meal_bolus_action.estimated_carbs
 
         # Create ORefZero observation with meal bolus (internal use only)
         # This adds the meal bolus to the observation so ORefZero can account for it
